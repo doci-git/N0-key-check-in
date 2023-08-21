@@ -1,0 +1,45 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+html {
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    background-color: #121111;
+}
+ header h3{
+    text-align: center;
+    color:darkorange;
+    font-size:30px;
+    padding: 10px 20px;
+ }
+
+video{
+    width:400px;
+    height:550px; 
+}   
+
+ h1,h2,h3{
+    text-align: center;
+    color: wheat;
+    width: 100%;
+ }
+
+
+ /*div button book*/
+.button-book {
+    text-align: center;
+}
+
+/*buttone book*/
+.btn {
+color: wheat;
+}
+
+.btn i {
+    font-size: 2rem;
+    color: #008000;
+}
