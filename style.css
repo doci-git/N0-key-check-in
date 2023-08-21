@@ -10,6 +10,11 @@ html {
     scroll-behavior: smooth;
     background-color: #121111;
 }
+div {
+width: 100%;
+height: 100%;
+}
+
  header h3{
     text-align: center;
     color:darkorange;
@@ -18,7 +23,7 @@ html {
  }
 
 video{
-    width:400px;
+    width:100%;
     height:550px; 
 }   
 
