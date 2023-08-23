@@ -13,6 +13,9 @@ div {
   width: 100%;
   height: 100%;
 }
+.important{
+  padding: 20px;
+}
 
 header h3 {
   text-align: center;
@@ -23,7 +26,7 @@ header h3 {
 
 video {
   width: 100%;
-  height: 550px;
+  height: 500px;
 }
 
 h1,
@@ -47,7 +50,7 @@ h3 {
 .btn i {
   font-size: 2rem;
   color: #008000;
-  padding-bottom: 20px;
+  padding:10px 10px 20px;
 }
 @media only screen and (min-width: 740px) {
   header h3 {
