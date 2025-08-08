@@ -40,10 +40,13 @@ h3 {
 }
 .main-door{
   text-align: center;
+  border: 2px solid #333;     /* spessore, tipo e colore del bordo */
+  border-radius: 8px;         /* angoli arrotondati */
+  font-family: sans-serif;    /* font del testo */
 }
 .main-door h3{
-  color: aliceblue;
-  padding: 10px;
+  color:antiquewhite;
+  padding: 14px;
 }
 .sms-btn{
   display:inline-block;
