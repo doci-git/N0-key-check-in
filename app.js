@@ -30,7 +30,7 @@ function aggiornaStatoPulsante(clicksLeft, buttonId) {
   if (clicksLeft <= 0) {
     btn.disabled = true;
     alert(
-      `You have used up the maximum number of button uses for MainDoor conctact us by cell.`
+      `You have used up the maximum number of button clicks! conctact us by cell or message.`
     );
   } else {
     btn.disabled = false;
@@ -51,7 +51,7 @@ async function accendiShelly(device) {
 
   if (clicksLeft <= 0) {
     alert(
-      `You have used up the maximum number of button uses for AptDoor conctact us by cell.`
+      `You have used up the maximum number of button clicks! conctact us by cell or message.`
     );
     aggiornaStatoPulsante(clicksLeft, device.button_id);
     return;
@@ -61,7 +61,7 @@ async function accendiShelly(device) {
   setClicksLeft(device.storage_key, clicksLeft);
   aggiornaStatoPulsante(clicksLeft, device.button_id);
 
-  alert(`Dispositivo ${device.button_id}: click left ${clicksLeft}`);
+  alert(`Button ${device.button_id}: click left ${clicksLeft}`);
 
   try {
     const response = await fetch(BASE_URL_SET, {
