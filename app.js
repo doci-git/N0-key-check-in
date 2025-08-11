@@ -1,70 +1,110 @@
-const DEVICE_ID = "e4b063f0c38c";
-const AUTH_KEY =
-  "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2";
+const DEVICES = [
+  {
+    id: "e4b063f0c38c",
+    auth_key:
+      "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+    storage_key: "shelly_clicks_left_1",
+    button_id: "MainDoor",
+    log_id: "log1",
+  },
+  {
+    id: "3494547ab161",
+    auth_key:
+      "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+    storage_key: "shelly_clicks_left_2",
+    button_id: "AptDoor",
+    log_id: "log2",
+  },
+];
+
+const MAX_CLICKS = 3;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 
-let clickCount = 0;
-const MAX_CLICKS = 3;
-
-function log(msg) {
-  document.getElementById("log").textContent = msg;
+function log(msg, logElementId) {
+  document.getElementById(logElementId).textContent = msg;
 }
 
-async function accendiShelly() {
-  if (clickCount >= MAX_CLICKS) {
+function aggiornaStatoPulsante(clicksLeft, buttonId) {
+  const btn = document.getElementById(buttonId);
+  if (clicksLeft <= 0) {
+    btn.disabled = true;
     alert(
-      `Hai raggiunto il limite massimo di ${MAX_CLICKS} utilizzi del pulsante.`
+      `You have used up the maximum number of button uses for MainDoor conctact us by cell.`
     );
+  } else {
+    btn.disabled = false;
+  }
+}
+
+function getClicksLeft(storageKey) {
+  const stored = localStorage.getItem(storageKey);
+  return stored === null ? MAX_CLICKS : parseInt(stored, 10);
+}
+
+function setClicksLeft(storageKey, count) {
+  localStorage.setItem(storageKey, count);
+}
+
+async function accendiShelly(device) {
+  let clicksLeft = getClicksLeft(device.storage_key);
+
+  if (clicksLeft <= 0) {
+    alert(
+      `You have used up the maximum number of button uses for AptDoor conctact us by cell.`
+    );
+    aggiornaStatoPulsante(clicksLeft, device.button_id);
     return;
   }
 
-  clickCount++;
-  const clicksLeft = MAX_CLICKS - clickCount;
+  clicksLeft--;
+  setClicksLeft(device.storage_key, clicksLeft);
+  aggiornaStatoPulsante(clicksLeft, device.button_id);
 
-  if (clicksLeft > 0) {
-    alert(`You have ${clicksLeft} clicks left.`);
-  } else {
-    alert(
-      `Hai raggiunto il limite massimo di ${MAX_CLICKS} utilizzi. Il pulsante sarà disabilitato.`
-    );
-    document.getElementById("btnAccendi").disabled = true;
-  }
+  alert(`Dispositivo ${device.button_id}: click left ${clicksLeft}`);
 
   try {
     const response = await fetch(BASE_URL_SET, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: DEVICE_ID,
-        auth_key: AUTH_KEY,
+        id: device.id,
+        auth_key: device.auth_key,
         channel: 0,
         on: true,
       }),
     });
 
     if (!response.ok) {
-      log(`Errore HTTP: ${response.status}`);
+      log(`Errore HTTP: ${response.status}`, device.log_id);
       return;
     }
 
     const text = await response.text();
 
     if (!text) {
-      log("DOOR OPEN");
+      log(
+        "DOOR OPEN",
+        device.log_id
+      );
       return;
     }
 
     const data = JSON.parse(text);
 
     if (data.error) {
-      log(`Errore API: ${JSON.stringify(data.error)}`);
+      log(`Errore API: ${JSON.stringify(data.error)}`, device.log_id);
     } else {
-      log("Shelly acceso con successo!");
+      log("Shelly acceso con successo!", device.log_id);
     }
   } catch (err) {
-    log(`Errore fetch: ${err.message}`);
+    log(`Errore fetch: ${err.message}`, device.log_id);
   }
 }
 
-document.getElementById("btnAccendi").onclick = accendiShelly;
+// All'avvio aggiorna stato pulsanti da storage e setta eventi click
+DEVICES.forEach((device) => {
+  aggiornaStatoPulsante(getClicksLeft(device.storage_key), device.button_id);
+  document.getElementById(device.button_id).onclick = () =>
+    accendiShelly(device);
+});
