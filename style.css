@@ -95,8 +95,13 @@ h3 {
 
   #controlPanel {
     text-align:auto;
-    padding: 15px 50px;
+    padding: 1px 50px;
     display: none;
+  }
+  h5{
+    color: red;
+    font-family: 'Courier New', Courier, monospace;
+    padding-bottom: 10px;
   }
 
   #controlPanel button {
