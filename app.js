@@ -21,6 +21,8 @@ const MAX_CLICKS = 3;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 
+const CORRECT_CODE = "1234"; // Password unica
+
 function log(msg, logElementId) {
   document.getElementById(logElementId).textContent = msg;
 }
@@ -30,7 +32,7 @@ function aggiornaStatoPulsante(clicksLeft, buttonId) {
   if (clicksLeft <= 0) {
     btn.disabled = true;
     alert(
-      `You have used up the maximum number of button clicks! conctact us by cell or message.`
+      `You have used the maximum number of button clicks! contacts us by cell or message...`
     );
   } else {
     btn.disabled = false;
@@ -51,7 +53,7 @@ async function accendiShelly(device) {
 
   if (clicksLeft <= 0) {
     alert(
-      `You have used up the maximum number of button clicks! conctact us by cell or message.`
+      `You have used the maximum number of button clicks! contacts us by cell or message...`
     );
     aggiornaStatoPulsante(clicksLeft, device.button_id);
     return;
@@ -61,7 +63,7 @@ async function accendiShelly(device) {
   setClicksLeft(device.storage_key, clicksLeft);
   aggiornaStatoPulsante(clicksLeft, device.button_id);
 
-  alert(`Button ${device.button_id}: click left ${clicksLeft}`);
+  alert(`${device.button_id}:You have ${clicksLeft} more clicks.`);
 
   try {
     const response = await fetch(BASE_URL_SET, {
@@ -84,7 +86,7 @@ async function accendiShelly(device) {
 
     if (!text) {
       log(
-        "DOOR OPEN",
+        "door open",
         device.log_id
       );
       return;
@@ -95,16 +97,30 @@ async function accendiShelly(device) {
     if (data.error) {
       log(`Errore API: ${JSON.stringify(data.error)}`, device.log_id);
     } else {
-      log("Shelly acceso con successo!", device.log_id);
+      log("acceso con successo!", device.log_id);
     }
   } catch (err) {
     log(`Errore fetch: ${err.message}`, device.log_id);
   }
 }
 
-// All'avvio aggiorna stato pulsanti da storage e setta eventi click
-DEVICES.forEach((device) => {
-  aggiornaStatoPulsante(getClicksLeft(device.storage_key), device.button_id);
-  document.getElementById(device.button_id).onclick = () =>
-    accendiShelly(device);
-});
+function abilitaPulsanti() {
+  DEVICES.forEach((device) => {
+    aggiornaStatoPulsante(getClicksLeft(device.storage_key), device.button_id);
+    document.getElementById(device.button_id).onclick = () =>
+      accendiShelly(device);
+  });
+}
+
+document.getElementById("btnCheckCode").onclick = () => {
+  const insertedCode = document.getElementById("authCode").value.trim();
+  if (insertedCode === CORRECT_CODE) {
+    alert("Codice corretto! Accesso consentito.");
+    document.getElementById("controlPanel").style.display = "block";
+    abilitaPulsanti();
+    document.getElementById("authCode").disabled = true;
+    document.getElementById("btnCheckCode").disabled = true;
+  } else {
+    alert("Codice errato, riprova.");
+  }
+};

@@ -18,46 +18,47 @@
     <div>
          <h2>check-in info</h2>
 
-    <h3>All steps you need to follow for check-in</h3>
+        <h3>All steps you need to follow for check-in</h3>
 
-    <video controls="controls" onloadstart="this.volume=0.1">
-      <source src="check-in4.mp4" type="video/mp4" />
-    </video>
+       <video controls="controls" onloadstart="this.volume=0.1">
+        <source src="check-in4.mp4" type="video/mp4" />
+       </video>
 
-<br><br>
+          <br><br>
+    </div>
 
-    <div class="main-door">
-      <!-- Link che apre porta giu -->
-          <h3>Click here to open Main Door</h3> 
-    <button id="MainDoor">Main Door</button>
-    <div id="log1"></div>
 
-    <br>
+    <div class="container">
+     <h3>Enter authorization code to access Door Controls:</h3>
+     <input type="password" id="authCode" placeholder="Enter the Code we sent you!" />
+     <button id="btnCheckCode">Verifica Codice</button>
 
-     <h3 id="AptDoor">Click here to open Apt. Door</h3>
+       <div id="controlPanel">
+        <h3>Click to open Main Door:</h3>
+          <button id="MainDoor">Open Main Door</button>
+          <div id="log1" class="log"></div>
 
-    <button id="AptDoor">Apt. Door</button>
-    <div id="log2"></div>
+          <h3>Click to open Apt Door:</h3>
+           <button id="AptDoor">Open Main Apt Door</button>
+       <div id="log2" class="log"></div>
+      </div>
+    </div>
    
-<!-- <a href="sms:+393898883634?body=Main21220" class="sms-btn">SMS Main Door</a>
+    <!-- <a href="sms:+393898883634?body=Main21220" class="sms-btn">SMS Main Door</a>
 <br><br> -->
-
-<br><br>
-    </div>
+  
     
-   
-    </div>
-   <br><br>
-    <div class="button-book">
-      <h3>If you have any question contact us direcly</h3>
-      <a
-        class="btn"
-        href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi if you need more info send a message ...."
+       <br><br>
+     <div class="button-book">
+       <h3>If you have any question contact us direcly</h3>
+        <a
+          class="btn"
+          href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi if you need more info send a message ...."
         ><i class="fa-brands fa-whatsapp"></i> </a>
     </div>
     <div class="important">
       <h3>'IMPORTANT' <br>Before sending the code, According to Italian law I have to register you on the portal dedicated to tourists, and for this I will need everyone's passport photos, which you can send me on Aibnb/Booking or even on WhatsApp
-</h3>
+      </h3>
     </div>
   </body>
   <script src="app.js"></script>
