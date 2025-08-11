@@ -17,7 +17,7 @@ const DEVICES = [
   },
 ];
 
-const MAX_CLICKS = 3;
+const MAX_CLICKS = 5;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 
