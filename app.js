@@ -21,7 +21,7 @@ const MAX_CLICKS = 3;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 
-const CORRECT_CODE = "1234"; // Password unica
+const CORRECT_CODE = "2245"; // Password unica
 
 function log(msg, logElementId) {
   document.getElementById(logElementId).textContent = msg;
@@ -32,7 +32,7 @@ function aggiornaStatoPulsante(clicksLeft, buttonId) {
   if (clicksLeft <= 0) {
     btn.disabled = true;
     alert(
-      `You have used the maximum number of button clicks! contacts us by cell or message...`
+      `You have used the maximum number of button clicks! call us or send a message...`
     );
   } else {
     btn.disabled = false;
@@ -53,7 +53,7 @@ async function accendiShelly(device) {
 
   if (clicksLeft <= 0) {
     alert(
-      `You have used the maximum number of button clicks! contacts us by cell or message...`
+      `You have used the maximum number of button clicks! call us or send a message......`
     );
     aggiornaStatoPulsante(clicksLeft, device.button_id);
     return;
@@ -115,12 +115,15 @@ function abilitaPulsanti() {
 document.getElementById("btnCheckCode").onclick = () => {
   const insertedCode = document.getElementById("authCode").value.trim();
   if (insertedCode === CORRECT_CODE) {
-    alert("Codice corretto! Accesso consentito.");
+    //alert("Codice corretto!.");
     document.getElementById("controlPanel").style.display = "block";
+    document.getElementById("authCode").style.display = "none";
+    document.getElementById("authCodeh3").style.display = "none";
+    document.getElementById("btnCheckCode").style.display = "none";
     abilitaPulsanti();
     document.getElementById("authCode").disabled = true;
     document.getElementById("btnCheckCode").disabled = true;
   } else {
-    alert("Codice errato, riprova.");
+    alert("Codice errato!.");
   }
 };
