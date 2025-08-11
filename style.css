@@ -48,16 +48,22 @@ h3 {
   color:antiquewhite;
   padding: 14px;
 }
-.sms-btn{
-  display:inline-block;
-  padding:10px 16px;
-  background:#007bff;
-  color:white;
-  border-radius:6px;
-  text-decoration:none;
-  font-family:system-ui, sans-serif;
-}
-.sms-btn:active{ transform:translateY(1px); }
+  button {
+      padding: 15px 30px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 1rem;
+    }
 
 /*div button book*/
 .button-book {
