@@ -8,7 +8,7 @@ const DEVICES = [
     log_id: "log1",
   },
   {
-    id: "3494547ab161",
+    id: "34945478d595",
     auth_key:
       "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
     storage_key: "shelly_clicks_left_2",
