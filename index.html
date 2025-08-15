@@ -30,8 +30,8 @@
 
     <div class="container">
      <h3 id="authCodeh3">Enter authorization Code to Access Door Controls:</h3>
-     <input type="password" id="authCode" placeholder="Enter the Code we sent you!" />
-     <button id="btnCheckCode">Verifica Codice</button>
+     <input type="number" id="authCode" placeholder="Enter the Code we sent you!" />
+     <button id="btnCheckCode">Submit</button>
      <div id="controlPanel">
          
          <h5>"Attention: You only have 3 clicks. Use the button for check-in only."</h5>
@@ -45,11 +45,27 @@
        <div id="log2" class="log"></div>
       </div>
     </div>
-   
-    <!-- <a href="sms:+393898883634?body=Main21220" class="sms-btn">SMS Main Door</a>
-<br><br> -->
-  
-    
+
+
+     <!-- Popup HTML -->
+ <!-- Popups generati per ogni device -->
+<div id="popup-MainDoor" class="popup">
+  <div class="popup-content">
+    <h2 id="popup-title-MainDoor"></h2>
+    <p id="popup-text-MainDoor"></p>
+    <button onclick="closePopup('MainDoor')">Chiudi</button>
+  </div>
+</div>
+
+<div id="popup-AptDoor" class="popup">
+  <div class="popup-content">
+    <h2 id="popup-title-AptDoor"></h2>
+    <p id="popup-text-AptDoor"></p>
+    <button onclick="closePopup('AptDoor')">Chiudi</button>
+  </div>
+</div>
+
+
        <br><br>
      <div class="button-book">
        <h3>If you have any question contact us direcly</h3>

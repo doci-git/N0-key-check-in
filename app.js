@@ -17,28 +17,43 @@ const DEVICES = [
   },
 ];
 
-const MAX_CLICKS = 30;
+const MAX_CLICKS = 3;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
-
 const CORRECT_CODE = "2245"; // Password unica
+const TIME_LIMIT_HOURS = 28;
 
+// Log
 function log(msg, logElementId) {
   document.getElementById(logElementId).textContent = msg;
 }
+//RIGT CLICK
+document.addEventListener('contextmenu',function (e) {
+  e.preventDefault()
+},false);
 
-function aggiornaStatoPulsante(clicksLeft, buttonId) {
-  const btn = document.getElementById(buttonId);
-  if (clicksLeft <= 0) {
-    btn.disabled = true;
-    alert(
-      `You have used the maximum number of button clicks! call us or send a message...`
-    );
+// Gestione popup
+function showDevicePopup(device, clicksLeft) {
+  const popup = document.getElementById(`popup-${device.button_id}`);
+  document.getElementById(`popup-title-${device.button_id}`).innerText =
+    device.button_id;
+  if (clicksLeft > 0) {
+    document.getElementById(
+      `popup-text-${device.button_id}`
+    ).innerText = `You have ${clicksLeft} clicks remaining.`;
   } else {
-    btn.disabled = false;
+    document.getElementById(
+      `popup-text-${device.button_id}`
+    ).innerText = `No clicks remaining. Please contact us.`;
   }
+  popup.style.display = "block";
 }
 
+function closePopup(buttonId) {
+  document.getElementById(`popup-${buttonId}`).style.display = "none";
+}
+
+// Click storage
 function getClicksLeft(storageKey) {
   const stored = localStorage.getItem(storageKey);
   return stored === null ? MAX_CLICKS : parseInt(stored, 10);
@@ -48,22 +63,55 @@ function setClicksLeft(storageKey, count) {
   localStorage.setItem(storageKey, count);
 }
 
+// Pulsanti
+function aggiornaStatoPulsante(device) {
+  const btn = document.getElementById(device.button_id);
+  const clicksLeft = getClicksLeft(device.storage_key);
+  btn.disabled = clicksLeft <= 0;
+}
+
+// Blocco pagina
+function checkTimeLimit() {
+  const startTime = parseInt(localStorage.getItem("usage_start_time"));
+  if (!startTime) return false;
+
+  const now = Date.now();
+  const hoursPassed = (now - startTime) / (1000 * 60 * 60);
+  if (hoursPassed >= TIME_LIMIT_HOURS) {
+      document.head.innerHTML = "";
+      document.body.innerHTML = "";
+      document.body.style.backgroundColor = "black";
+      document.body.style.color = "white";
+      document.body.style.display = "flex";
+      document.body.style.justifyContent = "center";
+      document.body.style.alignItems = "center";
+      document.body.style.height = "100vh";
+      document.body.style.fontSize = "22px";
+      document.body.style.textAlign = "center";
+      document.body.textContent = "⏰ Timeout link expired!.";
+      window.stop(); 
+    return true;
+  }
+  return false;
+}
+
+// Accensione Shelly
 async function accendiShelly(device) {
+  if (checkTimeLimit()) return;
+
   let clicksLeft = getClicksLeft(device.storage_key);
 
   if (clicksLeft <= 0) {
-    alert(
-      `You have used the maximum number of button clicks! call us or send a message......`
-    );
-    aggiornaStatoPulsante(clicksLeft, device.button_id);
+    showDevicePopup(device, clicksLeft);
+    aggiornaStatoPulsante(device);
     return;
   }
 
   clicksLeft--;
   setClicksLeft(device.storage_key, clicksLeft);
-  aggiornaStatoPulsante(clicksLeft, device.button_id);
+  aggiornaStatoPulsante(device);
 
-  alert(`${device.button_id}:You have ${clicksLeft} more clicks.`);
+  showDevicePopup(device, clicksLeft);
 
   try {
     const response = await fetch(BASE_URL_SET, {
@@ -83,17 +131,12 @@ async function accendiShelly(device) {
     }
 
     const text = await response.text();
-
     if (!text) {
-      log(
-        "door open",
-        device.log_id
-      );
+      log("door open", device.log_id);
       return;
     }
 
     const data = JSON.parse(text);
-
     if (data.error) {
       log(`Errore API: ${JSON.stringify(data.error)}`, device.log_id);
     } else {
@@ -104,18 +147,26 @@ async function accendiShelly(device) {
   }
 }
 
+// Abilitazione pulsanti
 function abilitaPulsanti() {
   DEVICES.forEach((device) => {
-    aggiornaStatoPulsante(getClicksLeft(device.storage_key), device.button_id);
+    aggiornaStatoPulsante(device);
     document.getElementById(device.button_id).onclick = () =>
       accendiShelly(device);
   });
 }
 
+// Controllo codice
 document.getElementById("btnCheckCode").onclick = () => {
   const insertedCode = document.getElementById("authCode").value.trim();
   if (insertedCode === CORRECT_CODE) {
-    //alert("Codice corretto!.");
+    // Salvo l'orario di accesso quando la password è corretta
+    if (!localStorage.getItem("usage_start_time")) {
+      localStorage.setItem("usage_start_time", Date.now());
+    }
+
+    if (checkTimeLimit()) return;
+
     document.getElementById("controlPanel").style.display = "block";
     document.getElementById("authCode").style.display = "none";
     document.getElementById("authCodeh3").style.display = "none";
