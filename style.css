@@ -151,7 +151,7 @@ h5 {
 .btn i {
   font-size: 2.5rem;
   color: #008000;
-  padding: 10px 10px 2px;
+  padding: 10px 10px 20px;
 }
 @media only screen and (min-width: 740px) {
   header h3 {
