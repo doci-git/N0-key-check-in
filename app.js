@@ -51,7 +51,7 @@ function showDevicePopup(device, clicksLeft) {
     device.button_id;
   document.getElementById(`popup-text-${device.button_id}`).innerText =
     clicksLeft > 0
-      ? `You have ${clicksLeft} remaming click.`
+      ? `You have ${clicksLeft} remaining click.`
       : `No clicks remaining. Please contact us.`;
   popup.style.display = "block";
 }
