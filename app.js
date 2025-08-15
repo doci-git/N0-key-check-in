@@ -174,6 +174,8 @@ document.getElementById("btnCheckCode").onclick = () => {
     abilitaPulsanti();
     document.getElementById("authCode").disabled = true;
     document.getElementById("btnCheckCode").disabled = true;
+    //document.getElementById("button-book").style.display = "none";
+    document.getElementById("important").style.display = "none";
   } else {
     alert("Codice errato!.");
   }
