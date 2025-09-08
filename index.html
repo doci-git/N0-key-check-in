@@ -1,82 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MusArt</title>
-    <link rel="stylesheet" href="style.css" />
-    <script
-      src="https://kit.fontawesome.com/aa7a81e6d4.js"
-      crossorigin="anonymous"
-    ></script>
-  </head>
-  <body>
-    <header>
-      <h3>MusArt</h3>
-    </header>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MusArt - Check-in System</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <link rel="stylesheet" href="style.css">
+</head>
 
-    <div>
-         <h3>Check-in info</h3>
-        <h3>All steps you need to follow for check-in</h3>
+<body>
+    
 
-       <video controls="controls" onloadstart="this.volume=0.1">
-        <source src="check-in4.mp4" type="video/mp4" />
-       </video>
-
-          <br><br>
+  <div id="expiredOverlay" class="expired-overlay hidden">
+    <i class="fas fa-shield-alt" style="font-size: 4rem; margin-bottom: 20px;"></i>
+    <h2>Access Expired</h2>
+    <p>The security session has expired. Access has been disabled. <BR>404 error</BR></p>
+    
+    <a class="btn btn-error" href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need assistance ">
+      <i class="fab fa-whatsapp"></i> Need Assistance
+    </a>
+  </div>
+ 
+  <div class="container" id="test2">
+    <div class="section1 fade-in">
+      <h2 class="section-title">MusArt <br>Check-in Information</h2>
+      
+      <!-- <div class="security-notice">
+         <h5><i class="fa-solid fa-door-open"></i>  MusArt check-in</h5>
+        <p>All steps you need to follow for a smooth check-in!</p>
+      </div> --> 
+      
+      <div class="video-container">
+        <video controls onloadstart="this.volume=0.1">
+          <source src="check-in4.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
     </div>
 
-
-    <div class="container">
-     <h3 id="authCodeh3">Enter authorization Code to Access Door Controls:</h3>
-     <input type="number" id="authCode" placeholder="Enter the Code we sent you!" />
-     <button id="btnCheckCode">Submit</button>
-     <div id="controlPanel">
-         
-         <h5>"ATTENTION: You only have 3 clicks. Use the button for check-in only."</h5>
+    <div class="section fade-in">
+      <div class="auth-container">
+        <h2 class="section-title hh2" id="hh2">Door Access</h2>
         
-        <h3>Click to open Main Door:</h3>
-          <button id="MainDoor">Unlock Main Door</button>
-          <div id="log1" class="log"></div>
+        <div class="auth-form" id="auth-form">
+          <div class="input-group">
+            <input type="number" id="authCode" placeholder="Enter the access code we sent you" inputmode="numeric" pattern="[0-9]*">
+          </div>
+          <button id="btnCheckCode" class="btn pulse">
+            <i class="fas fa-unlock-alt"></i> Submit Code
+          </button>
+        </div>
+        
+        <div id="controlPanel" class="control-panel">
+        
+          
+          <div class="door-control fade-in">
+            <h3><i class="fas fa-building"></i> Main Entrance Door</h3>
+            <button id="MainDoor" class="btn">
+              <i class="fas fa-key"></i> Unlock Main Door
+            </button>
+          </div>
 
-          <h3>Click to open Apartment Door:</h3>
-           <button id="AptDoor">Unlock Apt. Door</button>
-       <div id="log2" class="log"></div>
+          <div class="door-control fade-in">
+            <h3><i class="fas fa-home"></i> Apartment Door</h3>
+            <button id="AptDoor" class="btn">
+              <i class="fas fa-key"></i> Unlock Apartment Door
+            </button>
+          </div>
+          <br>
+            <div class="warning-box" id="warning-box">
+            <h5><i class="fas fa-exclamation-triangle"></i> Limited Access</h5>
+            <p>
+  Each button can be used a maximum of <strong>2 times</strong>.  
+  Please use it only for check-in. <br><br>  
+  Access will automatically expire 12 hours after the first click.
+</p>
+          </div>
+          
+          <!-- <div class="status-bar">
+            <div class="status-item">
+              <div>Tempo rimanente</div>
+              <div id="timeRemaining" class="status-value">02:00</div>
+            </div>
+            <div class="status-item">
+              <div>Stato sicurezza</div>
+              <div id="securityStatus" class="status-value">Attiva</div>
+            </div>
+          </div> -->
+        </div>
+        
+        <div id="sessionExpired" class="session-expired hidden">
+          <h3><i class="fas fa-clock"></i> Sessione Scaduta</h3>
+          <p>L'accesso è stato disattivato per motivi di sicurezza. Per sbloccare nuovamente le porte, richiedi un nuovo codice di accesso.</p>
+          <a class="btn btn-error" href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need a new access code">
+            <i class="fab fa-whatsapp"></i> Richiedi Assistenza
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Popups -->
+    <div id="popup-MainDoor" class="popup">
+      <div class="popup-content">
+        <h2><i class="fas fa-building"></i> Main Door</h2>
+        <p id="popup-text-MainDoor"></p>
+        <button class="btn" onclick="closePopup('MainDoor')">
+          <i class="fas fa-times"></i> Close
+        </button>
+      </div>
+    </div>
+
+    <div id="popup-AptDoor" class="popup">
+      <div class="popup-content">
+        <h2><i class="fas fa-home"></i> Apartment Door</h2>
+        <p id="popup-text-AptDoor"></p>
+        <button class="btn" onclick="closePopup('AptDoor')">
+          <i class="fas fa-times"></i> Close
+        </button>
+      </div>
+    </div>
+
+    <div class="section important fade-in" id="important">
+      <h3><i class="fas fa-exclamation-circle"></i> IMPORTANT LEGAL REQUIREMENT</h3>
+      <p>
+       Before sending the access code, according to Italian law, I must register all guests on the official tourist portal. Please send me photos of everyone's passports via Airbnb/Booking messaging or WhatsApp.
+      </p>
+    </div>
+
+    <div class="contact-section">
+      <h3>Need Assistance?</h3>
+      <p>Contact us directly for support</p>
+      <a class="contact-btn" href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need assistance with my check-in">
+        <i class="fab fa-whatsapp"></i>
+      </a>
+    </div>
+  </div>
+
+
+    <div class="boxes">
+      <a class="buttones" href="#popup1"> Wifi Info</a>
+    </div>
+
+    <div id="popup1" class="overlay1">
+      <div class="popup1">
+        <h3>Wifi info:</h3>
+        <a class="close1" href="#">&times;</a>
+        <div class="content1">
+          If you don’t have mobile internet when you arrive, you can still connect to our Wi-Fi standing in front door. Look for the network named This way<br> <br>
+          <strong>Wifi Name: <br> 
+          Vodafone-E45457264 <br>
+          Password: <br>
+          JxPdn3db7C2nPGnc</strong>
+        </div>
       </div>
     </div>
 
 
-     <!-- Popup HTML -->
- <!-- Popups generati per ogni device -->
-<div id="popup-MainDoor" class="popup">
-  <div class="popup-content">
-    <h2 id="popup-title-MainDoor"></h2>
-    <p id="popup-text-MainDoor"></p>
-    <button onclick="closePopup('MainDoor')">Chiudi</button>
+<footer class="footer">
+  <p>© 2025 MusArt - All rights reserved</p>
+  <button id="toggleAdmin" class="admin-toggle">⚙️</button>
+</footer>
+
+<!-- Area Admin (nascosta) -->
+<div id="adminArea" class="admin-area">
+  <div id="adminLogin">
+    <h3>Login Admin</h3>
+    <input type="password" id="adminPass" placeholder="Password Admin">
+    <button id="btnAdminLogin">Login</button>
+  </div>
+
+  <div id="adminPanel" style="display:none;">
+    <h3>Gestione Codice Segreto</h3>
+    <p class="pp">Codice attuale: <span id="currentCode"></span></p>
+    <input type="text" id="newCode" placeholder="Nuovo Codice">
+    <button id="btnCodeUpdate">Aggiorna Codice</button>
   </div>
 </div>
 
-<div id="popup-AptDoor" class="popup">
-  <div class="popup-content">
-    <h2 id="popup-title-AptDoor"></h2>
-    <p id="popup-text-AptDoor"></p>
-    <button onclick="closePopup('AptDoor')">Chiudi</button>
-  </div>
-</div>
 
+</body>
 
-       <br><br>
-     <div class="button-book" id="button-book">
-       <h3>If you have any question contact us direcly</h3>
-        <a
-          class="btn"
-          href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi if you need more info send a message ...."
-        ><i class="fa-brands fa-whatsapp"></i> </a>
-    </div>
-    <div class="important" id="important">
-      <h3>'IMPORTANT' <br>Before sending the code, According to Italian law I have to register you on the portal dedicated to tourists, and for this I will need everyone's passport photos, which you can send me on Aibnb/Booking or even on WhatsApp
-      </h3>
-    </div>
-  </body>
-  <script src="app.js"></script>
-</html
+    
+<script src="app.js"></script>
+</body>
+</html>
