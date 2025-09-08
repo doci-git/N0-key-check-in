@@ -683,7 +683,7 @@
   font-size: 16px;
   opacity: 0.4;
   transition: opacity 0.5s;
-  opacity: 0.03;
+  opacity: 0.01;
 }
 .admin-toggles {
   position: absolute;
