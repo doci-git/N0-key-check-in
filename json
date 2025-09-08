@@ -1,0 +1,10 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": false,
+    "secret_code": {
+      ".read": true,
+      ".write": "auth != null && auth.uid === 'ADMIN_UID'"
+    }
+  }
+}

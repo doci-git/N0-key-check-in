@@ -1,4 +1,4 @@
-// --- Configurazione ---
+// --- Configurazione dispositivi ---
 const DEVICES = [
   {
     id: "e4b063f0c38c",
@@ -20,30 +20,43 @@ const MAX_CLICKS = 3;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 const TIME_LIMIT_MINUTES = 1500;
-const SECRET_KEY = "musart_secret_123_fixed_key";
-const ADMIN_PASSWORD = "1122";
+
 let timeCheckInterval;
 
-// Gestione del codice con timestamp
-let CODE_DATA = JSON.parse(
-  localStorage.getItem("secret_code_data") || '{"code":"2245","timestamp":0}'
-);
+// --- Firebase config (SOSTITUISCI) ---
+const firebaseConfig = {
+  apiKey: "API_KEY",
+  authDomain: "https://check-in-4e0e9-default-rtdb.europe-west1.firebasedatabase.app/",
+  databaseURL:"",
+  projectId: "PROJECT_ID",
+  storageBucket: "PROJECT_ID.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID",
+};
+// UID admin (SOSTITUISCI con quello reale preso dalla console)
+const ADMIN_UID = "MlOBkoG2f4fv47ZHflH8lT8Lyxp2";
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+const codeRef = db.ref("secret_code");
+
+// --- Variabili codice ---
+let CODE_DATA = { code: "2245", timestamp: 0 };
 let CORRECT_CODE = CODE_DATA.code;
 let CODE_TIMESTAMP = CODE_DATA.timestamp;
 
-// --- Funzioni di storage ---
+// --- Utility storage ---
 function setStorage(key, value, minutes) {
   try {
     localStorage.setItem(key, value);
     const d = new Date();
     d.setTime(d.getTime() + minutes * 60 * 1000);
-    const expires = "expires=" + d.toUTCString();
-    document.cookie = `${key}=${value}; ${expires}; path=/; SameSite=Strict`;
+    document.cookie = `${key}=${value}; expires=${d.toUTCString()}; path=/; SameSite=Strict`;
   } catch (e) {
     console.error("Storage error:", e);
   }
 }
-
 function getStorage(key) {
   try {
     const localValue = localStorage.getItem(key);
@@ -58,7 +71,6 @@ function getStorage(key) {
   }
   return null;
 }
-
 function clearStorage(key) {
   try {
     localStorage.removeItem(key);
@@ -68,19 +80,21 @@ function clearStorage(key) {
   }
 }
 
-// --- Funzioni di sicurezza ---
+// --- Sicurezza/Hash sessione ---
 async function generateHash(str) {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-// --- Gestione tempo ---
+// --- Gestione sessione tempo ---
 async function setUsageStartTime() {
   const now = Date.now().toString();
-  const hash = await generateHash(now + SECRET_KEY);
+  // Hasheremo con il codice attuale per legare sessione ↔ codice corrente
+  const hash = await generateHash(now + CORRECT_CODE);
   setStorage("usage_start_time", now, TIME_LIMIT_MINUTES);
   setStorage("usage_hash", hash, TIME_LIMIT_MINUTES);
 }
@@ -89,13 +103,17 @@ async function checkTimeLimit() {
   const startTime = getStorage("usage_start_time");
   const storedHash = getStorage("usage_hash");
   if (!startTime || !storedHash) return false;
-  const calcHash = await generateHash(startTime + SECRET_KEY);
+
+  const calcHash = await generateHash(startTime + CORRECT_CODE);
   if (calcHash !== storedHash) {
-    showFatalError("⚠️ Violazione di sicurezza rilevata!");
+    // Se il codice è cambiato, invalido la sessione in modo "soft"
+    lockToLogin(
+      "La sessione è stata invalidata. Re-inserisci il nuovo codice."
+    );
     return true;
   }
-  const now = Date.now();
-  const minutesPassed = (now - parseInt(startTime, 10)) / (1000 * 60);
+
+  const minutesPassed = (Date.now() - parseInt(startTime, 10)) / (1000 * 60);
   if (minutesPassed >= TIME_LIMIT_MINUTES) {
     showSessionExpired();
     return true;
@@ -103,24 +121,14 @@ async function checkTimeLimit() {
   return false;
 }
 
-function showFatalError(message) {
-  clearInterval(timeCheckInterval);
-  document.body.innerHTML = `
-        <div style="
-          position: fixed;top:0;left:0;width:100%;height:100vh;
-          display:flex;justify-content:center;align-items:center;
-          background:#121111;color:#ff6b6b;font-size:24px;text-align:center;
-          padding:20px;z-index:9999;">${message}</div>`;
-}
-
 function showSessionExpired() {
   clearInterval(timeCheckInterval);
-  document.getElementById("expiredOverlay").classList.remove("hidden");
-  document.getElementById("controlPanel").classList.add("hidden");
-  document.getElementById("sessionExpired").classList.remove("hidden");
-  document.getElementById("test2").style.display = "none";
-  DEVICES.forEach((device) => {
-    const btn = document.getElementById(device.button_id);
+  const overlay = document.getElementById("expiredOverlay");
+  const cp = document.getElementById("controlPanel");
+  if (overlay) overlay.classList.remove("hidden");
+  if (cp) cp.classList.add("hidden");
+  DEVICES.forEach((d) => {
+    const btn = document.getElementById(d.button_id);
     if (btn) {
       btn.disabled = true;
       btn.classList.add("btn-error");
@@ -128,61 +136,62 @@ function showSessionExpired() {
   });
 }
 
-// --- Gestione click ---
+// --- Blocco immediato alla login (usato quando cambia il codice) ---
+function lockToLogin(msg) {
+  clearStorage("usage_start_time");
+  clearStorage("usage_hash");
+
+  const panel = document.getElementById("controlPanel");
+  const authForm = document.getElementById("auth-form");
+  const codeInput = document.getElementById("authCode");
+  const btn = document.getElementById("btnCheckCode");
+  if (panel) panel.style.display = "none";
+  if (authForm) authForm.style.display = "block";
+  if (codeInput) codeInput.value = "";
+  if (btn) btn.style.display = "inline-block";
+
+  if (msg) alert(msg);
+}
+
+// --- Click & bottoni ---
 function getClicksLeft(key) {
   const stored = getStorage(key);
   return stored === null ? MAX_CLICKS : parseInt(stored, 10);
 }
-
 function setClicksLeft(key, count) {
   setStorage(key, count.toString(), TIME_LIMIT_MINUTES);
 }
-
 function updateButtonState(device) {
   const btn = document.getElementById(device.button_id);
   if (!btn) return;
   const clicksLeft = getClicksLeft(device.storage_key);
   btn.disabled = clicksLeft <= 0;
-  if (clicksLeft <= 0) {
-    btn.classList.add("btn-error");
-    btn.classList.remove("btn-success");
-  } else {
-    btn.classList.add("btn-success");
-    btn.classList.remove("btn-error");
-  }
+  btn.classList.toggle("btn-error", clicksLeft <= 0);
+  btn.classList.toggle("btn-success", clicksLeft > 0);
 }
-
-// --- Popup ---
 function showDevicePopup(device, clicksLeft) {
   const popup = document.getElementById(`popup-${device.button_id}`);
   if (!popup) return;
   const text = document.getElementById(`popup-text-${device.button_id}`);
   if (text) {
-    if (clicksLeft > 0) {
-      text.innerHTML = `<i class="fas fa-check-circle" style="color:#4CAF50;font-size:2.5rem;margin-bottom:15px;"></i>
-            <div><strong>${clicksLeft}</strong> Click Left</div>
-            <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
-    } else {
-      text.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#FFC107;font-size:2.5rem;margin-bottom:15px;"></i>
-            <div><strong>No more clicks left!</strong></div>
-            <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
-    }
+    text.innerHTML =
+      clicksLeft > 0
+        ? `<i class="fas fa-check-circle" style="font-size:2rem;"></i>
+         <div><strong>${clicksLeft}</strong> Click Left</div><div>Door Unlocked!</div>`
+        : `<i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i>
+         <div><strong>No more clicks!</strong></div>`;
   }
   popup.style.display = "flex";
   if (clicksLeft > 0) setTimeout(() => closePopup(device.button_id), 3000);
 }
-
 function closePopup(buttonId) {
   const popup = document.getElementById(`popup-${buttonId}`);
   if (popup) popup.style.display = "none";
 }
 
-// --- Attivazione device ---
+// --- Attivazione dispositivi (Shelly) ---
 async function activateDevice(device) {
   if (await checkTimeLimit()) return;
-
-  // Controlla se il codice è stato cambiato
-  checkForCodeUpdates();
 
   let clicksLeft = getClicksLeft(device.storage_key);
   if (clicksLeft <= 0) {
@@ -190,8 +199,8 @@ async function activateDevice(device) {
     updateButtonState(device);
     return;
   }
-  clicksLeft--;
-  setClicksLeft(device.storage_key, clicksLeft);
+
+  setClicksLeft(device.storage_key, --clicksLeft);
   updateButtonState(device);
   try {
     const response = await fetch(BASE_URL_SET, {
@@ -211,83 +220,110 @@ async function activateDevice(device) {
       setClicksLeft(device.storage_key, clicksLeft + 1);
       updateButtonState(device);
     }
-  } catch (error) {
-    console.error("Device activation failed:", error);
+  } catch (e) {
+    console.error("Device activation failed:", e);
     setClicksLeft(device.storage_key, clicksLeft + 1);
     updateButtonState(device);
   }
 }
 
-// --- Admin Login ---
+// --- Admin (Auth + Update codice) ---
 function showAdminPanel() {
-  document.getElementById("adminLogin").style.display = "none";
-  document.getElementById("adminPanel").style.display = "block";
-  document.getElementById("currentCode").textContent = CORRECT_CODE;
+  const login = document.getElementById("adminLogin");
+  const panel = document.getElementById("adminPanel");
+  if (login) login.style.display = "none";
+  if (panel) panel.style.display = "block";
+  const cc = document.getElementById("currentCode");
+  if (cc) cc.textContent = CORRECT_CODE;
 }
 
-function handleAdminLogin() {
-  const pass = document.getElementById("adminPass").value.trim();
-  if (pass === ADMIN_PASSWORD) {
+async function handleAdminLogin() {
+  const email = document.getElementById("adminEmail").value.trim();
+  const pass = document.getElementById("adminPass").value;
+  try {
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    if (!cred.user || cred.user.uid !== ADMIN_UID) {
+      alert("Non sei autorizzato come admin.");
+      await auth.signOut();
+      return;
+    }
     showAdminPanel();
-  } else {
-    alert("Password admin errata!");
+  } catch (e) {
+    alert("Login admin fallito: " + (e?.message || e));
   }
 }
 
-function handleCodeUpdate() {
+async function handleCodeUpdateFirebase() {
+  if (!auth.currentUser || auth.currentUser.uid !== ADMIN_UID) {
+    alert("Devi essere admin per aggiornare il codice.");
+    return;
+  }
   const newCode = document.getElementById("newCode").value.trim();
   if (!newCode) {
     alert("Inserisci un codice valido");
     return;
   }
 
-  // Aggiorna con timestamp corrente
-  const newTimestamp = Date.now();
-  CODE_DATA = {
-    code: newCode,
-    timestamp: newTimestamp,
-  };
-
-  localStorage.setItem("secret_code_data", JSON.stringify(CODE_DATA));
-  CORRECT_CODE = newCode;
-  CODE_TIMESTAMP = newTimestamp;
-
-  document.getElementById("currentCode").textContent = CORRECT_CODE;
+  const timestamp = Date.now();
+  await codeRef.set({ code: newCode, timestamp });
+  const cc = document.getElementById("currentCode");
+  if (cc) cc.textContent = newCode;
   alert(
-    "Codice aggiornato con successo!\n\nTutti i dispositivi dovranno utilizzare il nuovo codice per accedere."
+    "Codice aggiornato. Tutti i dispositivi vengono disconnessi e dovranno inserire il nuovo codice."
   );
 }
 
-// --- Controllo aggiornamenti codice ---
-function checkForCodeUpdates() {
-  const storedCodeData = JSON.parse(
-    localStorage.getItem("secret_code_data") || '{"code":"2245","timestamp":0}'
-  );
+// --- Realtime: ascolto del codice (blocca subito vecchio codice) ---
+codeRef.on("value", (snap) => {
+  const data = snap.val();
+  if (!data) return;
+  if (data.timestamp > CODE_TIMESTAMP || data.code !== CORRECT_CODE) {
+    CODE_DATA = data;
+    CORRECT_CODE = data.code;
+    CODE_TIMESTAMP = data.timestamp;
 
-  if (storedCodeData.timestamp > CODE_TIMESTAMP) {
-    CODE_DATA = storedCodeData;
-    CORRECT_CODE = storedCodeData.code;
-    CODE_TIMESTAMP = storedCodeData.timestamp;
-    return true;
+    // Invalida qualunque sessione corrente legata al vecchio codice
+    lockToLogin(
+      "Il codice è stato aggiornato. Usa il nuovo codice per continuare."
+    );
   }
-  return false;
+});
+
+// --- Login utenti (codice pin) ---
+async function handleCodeSubmit() {
+  const inserted = document.getElementById("authCode").value.trim();
+  if (inserted !== CORRECT_CODE) {
+    alert("Codice errato! (Il vecchio codice non è più valido)");
+    return;
+  }
+  await setUsageStartTime();
+  if (await checkTimeLimit()) return;
+
+  const panel = document.getElementById("controlPanel");
+  if (panel) panel.style.display = "block";
+  document.getElementById("auth-form").style.display = "none";
+  const btn = document.getElementById("btnCheckCode");
+  if (btn) btn.style.display = "none";
+  DEVICES.forEach(updateButtonState);
 }
 
 // --- Inizializzazione ---
 function init() {
-  // codice utente
+  // Autenticazione: utenti anonimi per lettura DB
+  auth.onAuthStateChanged((user) => {
+    if (!user) auth.signInAnonymously().catch(console.error);
+  });
+
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
 
-  // dispositivi
-  DEVICES.forEach((device) => {
-    const btn = document.getElementById(device.button_id);
-    if (btn) btn.addEventListener("click", () => activateDevice(device));
+  DEVICES.forEach((d) => {
+    const btn = document.getElementById(d.button_id);
+    if (btn) btn.addEventListener("click", () => activateDevice(d));
   });
 
-  // chiusura popup
-  document.querySelectorAll(".popup .btn").forEach((button) => {
-    button.addEventListener("click", function () {
+  document.querySelectorAll(".popup .btn").forEach((b) => {
+    b.addEventListener("click", function () {
       const popup = this.closest(".popup");
       if (popup) {
         const id = popup.id.replace("popup-", "");
@@ -296,70 +332,28 @@ function init() {
     });
   });
 
-  // admin
   const btnAdminLogin = document.getElementById("btnAdminLogin");
   if (btnAdminLogin) btnAdminLogin.addEventListener("click", handleAdminLogin);
+
   const btnCodeUpdate = document.getElementById("btnCodeUpdate");
-  if (btnCodeUpdate) btnCodeUpdate.addEventListener("click", handleCodeUpdate);
+  if (btnCodeUpdate)
+    btnCodeUpdate.addEventListener("click", handleCodeUpdateFirebase);
 
-  // tempo
-  checkTimeLimit().then((expired) => {
-    if (expired) return;
-    const startTime = getStorage("usage_start_time");
-    if (startTime) {
-      document.getElementById("controlPanel").style.display = "block";
-      document.getElementById("authCode").style.display = "none";
-      document.getElementById("auth-form").style.display = "none";
-      document.getElementById("btnCheckCode").style.display = "none";
-      document.getElementById("important").style.display = "none";
-      document.getElementById("hh2").style.display = "none";
-      DEVICES.forEach(updateButtonState);
-    }
-  });
-
+  // timer sessione
+  checkTimeLimit();
   timeCheckInterval = setInterval(() => checkTimeLimit(), 1000);
 
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-  // Toggle visualizzazione area admin
+  // toggle area admin
   const toggleBtn = document.getElementById("toggleAdmin");
   if (toggleBtn) {
     toggleBtn.addEventListener("click", () => {
-      const adminArea = document.getElementById("adminArea");
-      if (
-        adminArea.style.display === "none" ||
-        adminArea.style.display === ""
-      ) {
-        adminArea.style.display = "block";
-      } else {
-        adminArea.style.display = "none";
-      }
+      const area = document.getElementById("adminArea");
+      area.style.display = area.style.display === "block" ? "none" : "block";
     });
   }
-}
 
-// --- Codice utente ---
-async function handleCodeSubmit() {
-  // Controlla se c'è un nuovo codice (confronta i timestamp)
-  if (checkForCodeUpdates()) {
-    alert("Il codice di accesso è stato cambiato. Inserisci il nuovo codice.");
-    return;
-  }
-
-  const insertedCode = document.getElementById("authCode").value.trim();
-  if (insertedCode !== CORRECT_CODE) {
-    alert("Codice errato! Riprova.");
-    return;
-  }
-  await setUsageStartTime();
-  if (await checkTimeLimit()) return;
-  document.getElementById("controlPanel").style.display = "block";
-  document.getElementById("authCode").style.display = "none";
-  document.getElementById("auth-form").style.display = "none";
-  document.getElementById("btnCheckCode").style.display = "none";
-  document.getElementById("important").style.display = "none";
-  document.getElementById("hh2").style.display = "none";
-  DEVICES.forEach(updateButtonState);
+  // evita tasto destro (opzionale)
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 }
 
 // --- Start ---
