@@ -19,11 +19,17 @@ const DEVICES = [
 const MAX_CLICKS = 3;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
-let CORRECT_CODE = localStorage.getItem("secret_code") || "2245"; // <-- dinamico
 const TIME_LIMIT_MINUTES = 1500;
 const SECRET_KEY = "musart_secret_123_fixed_key";
-const ADMIN_PASSWORD = "1122"; // <-- password admin
+const ADMIN_PASSWORD = "1122";
 let timeCheckInterval;
+
+// --- Codice con timestamp ---
+let CODE_DATA = JSON.parse(
+  localStorage.getItem("secret_code_data") || '{"code":"2245","timestamp":0}'
+);
+let CORRECT_CODE = CODE_DATA.code;
+let CODE_TIMESTAMP = CODE_DATA.timestamp;
 
 // --- Funzioni di storage ---
 function setStorage(key, value, minutes) {
@@ -37,6 +43,7 @@ function setStorage(key, value, minutes) {
     console.error("Storage error:", e);
   }
 }
+
 function getStorage(key) {
   try {
     const localValue = localStorage.getItem(key);
@@ -51,6 +58,7 @@ function getStorage(key) {
   }
   return null;
 }
+
 function clearStorage(key) {
   try {
     localStorage.removeItem(key);
@@ -60,7 +68,7 @@ function clearStorage(key) {
   }
 }
 
-// --- Funzioni di sicurezza ---
+// --- Funzioni sicurezza ---
 async function generateHash(str) {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
@@ -75,8 +83,8 @@ async function setUsageStartTime() {
   const hash = await generateHash(now + SECRET_KEY);
   setStorage("usage_start_time", now, TIME_LIMIT_MINUTES);
   setStorage("usage_hash", hash, TIME_LIMIT_MINUTES);
-  updateStatusBar();
 }
+
 async function checkTimeLimit() {
   const startTime = getStorage("usage_start_time");
   const storedHash = getStorage("usage_hash");
@@ -92,18 +100,19 @@ async function checkTimeLimit() {
     showSessionExpired();
     return true;
   }
-  updateStatusBar();
   return false;
 }
+
 function showFatalError(message) {
   clearInterval(timeCheckInterval);
   document.body.innerHTML = `
-    <div style="
-      position: fixed;top:0;left:0;width:100%;height:100vh;
-      display:flex;justify-content:center;align-items:center;
-      background:#121111;color:#ff6b6b;font-size:24px;text-align:center;
-      padding:20px;z-index:9999;">${message}</div>`;
+        <div style="
+          position: fixed;top:0;left:0;width:100%;height:100vh;
+          display:flex;justify-content:center;align-items:center;
+          background:#121111;color:#ff6b6b;font-size:24px;text-align:center;
+          padding:20px;z-index:9999;">${message}</div>`;
 }
+
 function showSessionExpired() {
   clearInterval(timeCheckInterval);
   document.getElementById("expiredOverlay").classList.remove("hidden");
@@ -117,43 +126,6 @@ function showSessionExpired() {
       btn.classList.add("btn-error");
     }
   });
-  const securityStatus = document.getElementById("securityStatus");
-  if (securityStatus) {
-    securityStatus.textContent = "Scaduta";
-    securityStatus.style.color = "var(--error)";
-  }
-}
-
-// --- Barra di stato ---
-function updateStatusBar() {
-  const mainDoorCounter = document.getElementById("mainDoorCounter");
-  const aptDoorCounter = document.getElementById("aptDoorCounter");
-  const timeRemaining = document.getElementById("timeRemaining");
-  if (mainDoorCounter) {
-    mainDoorCounter.textContent = `${getClicksLeft(
-      DEVICES[0].storage_key
-    )} click left`;
-  }
-  if (aptDoorCounter) {
-    aptDoorCounter.textContent = `${getClicksLeft(
-      DEVICES[1].storage_key
-    )} click left`;
-  }
-  const startTime = getStorage("usage_start_time");
-  if (!startTime || !timeRemaining) return;
-  const now = Date.now();
-  const minutesPassed = (now - parseInt(startTime, 10)) / (1000 * 60);
-  const minutesLeft = Math.max(
-    0,
-    Math.floor(TIME_LIMIT_MINUTES - minutesPassed)
-  );
-  const secondsLeft = Math.max(0, Math.floor(60 - (minutesPassed % 1) * 60));
-  timeRemaining.textContent = `${minutesLeft
-    .toString()
-    .padStart(2, "0")}:${secondsLeft.toString().padStart(2, "0")}`;
-  if (minutesLeft < 1) timeRemaining.style.color = "var(--error)";
-  else if (minutesLeft < 5) timeRemaining.style.color = "var(--warning)";
-  else timeRemaining.style.color = "var(--primary)";
 }
 
 // --- Gestione click ---
@@ -161,10 +133,11 @@ function getClicksLeft(key) {
   const stored = getStorage(key);
   return stored === null ? MAX_CLICKS : parseInt(stored, 10);
 }
+
 function setClicksLeft(key, count) {
   setStorage(key, count.toString(), TIME_LIMIT_MINUTES);
-  updateStatusBar();
 }
+
 function updateButtonState(device) {
   const btn = document.getElementById(device.button_id);
   if (!btn) return;
@@ -187,17 +160,18 @@ function showDevicePopup(device, clicksLeft) {
   if (text) {
     if (clicksLeft > 0) {
       text.innerHTML = `<i class="fas fa-check-circle" style="color:#4CAF50;font-size:2.5rem;margin-bottom:15px;"></i>
-        <div><strong>${clicksLeft}</strong> Click Left</div>
-        <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
+            <div><strong>${clicksLeft}</strong> Click Left</div>
+            <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
     } else {
       text.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#FFC107;font-size:2.5rem;margin-bottom:15px;"></i>
-        <div><strong>No more clicks left!</strong></div>
-        <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
+            <div><strong>No more clicks left!</strong></div>
+            <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
     }
   }
   popup.style.display = "flex";
   if (clicksLeft > 0) setTimeout(() => closePopup(device.button_id), 3000);
 }
+
 function closePopup(buttonId) {
   const popup = document.getElementById(`popup-${buttonId}`);
   if (popup) popup.style.display = "none";
@@ -206,6 +180,9 @@ function closePopup(buttonId) {
 // --- Attivazione device ---
 async function activateDevice(device) {
   if (await checkTimeLimit()) return;
+
+  checkForCodeUpdates();
+
   let clicksLeft = getClicksLeft(device.storage_key);
   if (clicksLeft <= 0) {
     showDevicePopup(device, clicksLeft);
@@ -240,12 +217,13 @@ async function activateDevice(device) {
   }
 }
 
-// --- Admin Login ---
+// --- Admin ---
 function showAdminPanel() {
   document.getElementById("adminLogin").style.display = "none";
   document.getElementById("adminPanel").style.display = "block";
   document.getElementById("currentCode").textContent = CORRECT_CODE;
 }
+
 function handleAdminLogin() {
   const pass = document.getElementById("adminPass").value.trim();
   if (pass === ADMIN_PASSWORD) {
@@ -254,20 +232,91 @@ function handleAdminLogin() {
     alert("Password admin errata!");
   }
 }
+
 function handleCodeUpdate() {
   const newCode = document.getElementById("newCode").value.trim();
   if (!newCode) {
     alert("Inserisci un codice valido");
     return;
   }
+
+  const newTimestamp = Date.now();
+  CODE_DATA = { code: newCode, timestamp: newTimestamp };
+  localStorage.setItem("secret_code_data", JSON.stringify(CODE_DATA));
   CORRECT_CODE = newCode;
-  localStorage.setItem("secret_code", newCode);
+  CODE_TIMESTAMP = newTimestamp;
+
   document.getElementById("currentCode").textContent = CORRECT_CODE;
-  alert("Codice aggiornato con successo!");
+
+  const link = `${window.location.origin}${window.location.pathname}?secret=${newCode}`;
+  alert(
+    "Codice aggiornato con successo!\nCondividi questo link con tutti i dispositivi:\n" +
+      link
+  );
+}
+
+// --- Controllo aggiornamenti codice ---
+function checkForCodeUpdates() {
+  const storedCodeData = JSON.parse(
+    localStorage.getItem("secret_code_data") || '{"code":"2245","timestamp":0}'
+  );
+  if (storedCodeData.timestamp > CODE_TIMESTAMP) {
+    CODE_DATA = storedCodeData;
+    CORRECT_CODE = storedCodeData.code;
+    CODE_TIMESTAMP = storedCodeData.timestamp;
+    return true;
+  }
+  return false;
+}
+
+// --- Lettura parametro URL ---
+function getURLParameter(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+function checkURLForCodeUpdate() {
+  const newCode = getURLParameter("secret");
+  if (!newCode) return false;
+
+  const newTimestamp = Date.now();
+  CODE_DATA = { code: newCode, timestamp: newTimestamp };
+  localStorage.setItem("secret_code_data", JSON.stringify(CODE_DATA));
+  CORRECT_CODE = newCode;
+  CODE_TIMESTAMP = newTimestamp;
+  console.log("Secret code aggiornato da URL:", newCode);
+  return true;
+}
+
+// --- Codice utente ---
+async function handleCodeSubmit() {
+  if (checkForCodeUpdates()) {
+    alert("Il codice di accesso è stato cambiato. Inserisci il nuovo codice.");
+    return;
+  }
+
+  const insertedCode = document.getElementById("authCode").value.trim();
+  if (insertedCode !== CORRECT_CODE) {
+    alert("Codice errato! Riprova.");
+    return;
+  }
+  await setUsageStartTime();
+  if (await checkTimeLimit()) return;
+
+  document.getElementById("controlPanel").style.display = "block";
+  document.getElementById("authCode").style.display = "none";
+  document.getElementById("auth-form").style.display = "none";
+  document.getElementById("btnCheckCode").style.display = "none";
+  document.getElementById("important").style.display = "none";
+  document.getElementById("hh2").style.display = "none";
+  DEVICES.forEach(updateButtonState);
 }
 
 // --- Inizializzazione ---
 function init() {
+  // Controllo URL per codice aggiornato
+  checkURLForCodeUpdate();
+
   // codice utente
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
@@ -295,7 +344,7 @@ function init() {
   const btnCodeUpdate = document.getElementById("btnCodeUpdate");
   if (btnCodeUpdate) btnCodeUpdate.addEventListener("click", handleCodeUpdate);
 
-  // tempo
+  // gestione tempo
   checkTimeLimit().then((expired) => {
     if (expired) return;
     const startTime = getStorage("usage_start_time");
@@ -307,48 +356,21 @@ function init() {
       document.getElementById("important").style.display = "none";
       document.getElementById("hh2").style.display = "none";
       DEVICES.forEach(updateButtonState);
-      updateStatusBar();
     }
   });
 
   timeCheckInterval = setInterval(() => checkTimeLimit(), 1000);
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // Toggle visualizzazione area admin
+  // Toggle admin area
   const toggleBtn = document.getElementById("toggleAdmin");
   if (toggleBtn) {
     toggleBtn.addEventListener("click", () => {
       const adminArea = document.getElementById("adminArea");
-      if (
-        adminArea.style.display === "none" ||
-        adminArea.style.display === ""
-      ) {
-        adminArea.style.display = "block";
-      } else {
-        adminArea.style.display = "none";
-      }
+      adminArea.style.display =
+        adminArea.style.display === "block" ? "none" : "block";
     });
   }
-}
-
-// --- Codice utente ---
-async function handleCodeSubmit() {
-  const insertedCode = document.getElementById("authCode").value.trim();
-  if (insertedCode !== CORRECT_CODE) {
-    alert("Codice errato! Riprova.");
-    return;
-  }
-  await setUsageStartTime();
-  if (await checkTimeLimit()) return;
-  document.getElementById("controlPanel").style.display = "block";
-  document.getElementById("authCode").style.display = "none";
-  document.getElementById("auth-form").style.display = "none";
-  document.getElementById("btnCheckCode").style.display = "none";
-  document.getElementById("important").style.display = "none";
-  document.getElementById("hh2").style.display = "none";
-  DEVICES.forEach(updateButtonState);
-  updateStatusBar();
-  
 }
 
 // --- Start ---
