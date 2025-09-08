@@ -24,7 +24,7 @@ const SECRET_KEY = "musart_secret_123_fixed_key";
 const ADMIN_PASSWORD = "1122";
 let timeCheckInterval;
 
-// --- Codice con timestamp ---
+// Gestione del codice con timestamp
 let CODE_DATA = JSON.parse(
   localStorage.getItem("secret_code_data") || '{"code":"2245","timestamp":0}'
 );
@@ -68,7 +68,7 @@ function clearStorage(key) {
   }
 }
 
-// --- Funzioni sicurezza ---
+// --- Funzioni di sicurezza ---
 async function generateHash(str) {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
@@ -181,6 +181,7 @@ function closePopup(buttonId) {
 async function activateDevice(device) {
   if (await checkTimeLimit()) return;
 
+  // Controlla se il codice è stato cambiato
   checkForCodeUpdates();
 
   let clicksLeft = getClicksLeft(device.storage_key);
@@ -217,7 +218,7 @@ async function activateDevice(device) {
   }
 }
 
-// --- Admin ---
+// --- Admin Login ---
 function showAdminPanel() {
   document.getElementById("adminLogin").style.display = "none";
   document.getElementById("adminPanel").style.display = "block";
@@ -240,18 +241,20 @@ function handleCodeUpdate() {
     return;
   }
 
+  // Aggiorna con timestamp corrente
   const newTimestamp = Date.now();
-  CODE_DATA = { code: newCode, timestamp: newTimestamp };
+  CODE_DATA = {
+    code: newCode,
+    timestamp: newTimestamp,
+  };
+
   localStorage.setItem("secret_code_data", JSON.stringify(CODE_DATA));
   CORRECT_CODE = newCode;
   CODE_TIMESTAMP = newTimestamp;
 
   document.getElementById("currentCode").textContent = CORRECT_CODE;
-
-  const link = `${window.location.origin}${window.location.pathname}?secret=${newCode}`;
   alert(
-    "Codice aggiornato con successo!\nCondividi questo link con tutti i dispositivi:\n" +
-      link
+    "Codice aggiornato con successo!\n\nTutti i dispositivi dovranno utilizzare il nuovo codice per accedere."
   );
 }
 
@@ -260,6 +263,7 @@ function checkForCodeUpdates() {
   const storedCodeData = JSON.parse(
     localStorage.getItem("secret_code_data") || '{"code":"2245","timestamp":0}'
   );
+
   if (storedCodeData.timestamp > CODE_TIMESTAMP) {
     CODE_DATA = storedCodeData;
     CORRECT_CODE = storedCodeData.code;
@@ -269,54 +273,8 @@ function checkForCodeUpdates() {
   return false;
 }
 
-// --- Lettura parametro URL ---
-function getURLParameter(name) {
-  const params = new URLSearchParams(window.location.search);
-  return params.get(name);
-}
-
-function checkURLForCodeUpdate() {
-  const newCode = getURLParameter("secret");
-  if (!newCode) return false;
-
-  const newTimestamp = Date.now();
-  CODE_DATA = { code: newCode, timestamp: newTimestamp };
-  localStorage.setItem("secret_code_data", JSON.stringify(CODE_DATA));
-  CORRECT_CODE = newCode;
-  CODE_TIMESTAMP = newTimestamp;
-  console.log("Secret code aggiornato da URL:", newCode);
-  return true;
-}
-
-// --- Codice utente ---
-async function handleCodeSubmit() {
-  if (checkForCodeUpdates()) {
-    alert("Il codice di accesso è stato cambiato. Inserisci il nuovo codice.");
-    return;
-  }
-
-  const insertedCode = document.getElementById("authCode").value.trim();
-  if (insertedCode !== CORRECT_CODE) {
-    alert("Codice errato! Riprova.");
-    return;
-  }
-  await setUsageStartTime();
-  if (await checkTimeLimit()) return;
-
-  document.getElementById("controlPanel").style.display = "block";
-  document.getElementById("authCode").style.display = "none";
-  document.getElementById("auth-form").style.display = "none";
-  document.getElementById("btnCheckCode").style.display = "none";
-  document.getElementById("important").style.display = "none";
-  document.getElementById("hh2").style.display = "none";
-  DEVICES.forEach(updateButtonState);
-}
-
 // --- Inizializzazione ---
 function init() {
-  // Controllo URL per codice aggiornato
-  checkURLForCodeUpdate();
-
   // codice utente
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
@@ -344,7 +302,7 @@ function init() {
   const btnCodeUpdate = document.getElementById("btnCodeUpdate");
   if (btnCodeUpdate) btnCodeUpdate.addEventListener("click", handleCodeUpdate);
 
-  // gestione tempo
+  // tempo
   checkTimeLimit().then((expired) => {
     if (expired) return;
     const startTime = getStorage("usage_start_time");
@@ -360,17 +318,48 @@ function init() {
   });
 
   timeCheckInterval = setInterval(() => checkTimeLimit(), 1000);
+
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // Toggle admin area
+  // Toggle visualizzazione area admin
   const toggleBtn = document.getElementById("toggleAdmin");
   if (toggleBtn) {
     toggleBtn.addEventListener("click", () => {
       const adminArea = document.getElementById("adminArea");
-      adminArea.style.display =
-        adminArea.style.display === "block" ? "none" : "block";
+      if (
+        adminArea.style.display === "none" ||
+        adminArea.style.display === ""
+      ) {
+        adminArea.style.display = "block";
+      } else {
+        adminArea.style.display = "none";
+      }
     });
   }
+}
+
+// --- Codice utente ---
+async function handleCodeSubmit() {
+  // Controlla se c'è un nuovo codice (confronta i timestamp)
+  if (checkForCodeUpdates()) {
+    alert("Il codice di accesso è stato cambiato. Inserisci il nuovo codice.");
+    return;
+  }
+
+  const insertedCode = document.getElementById("authCode").value.trim();
+  if (insertedCode !== CORRECT_CODE) {
+    alert("Codice errato! Riprova.");
+    return;
+  }
+  await setUsageStartTime();
+  if (await checkTimeLimit()) return;
+  document.getElementById("controlPanel").style.display = "block";
+  document.getElementById("authCode").style.display = "none";
+  document.getElementById("auth-form").style.display = "none";
+  document.getElementById("btnCheckCode").style.display = "none";
+  document.getElementById("important").style.display = "none";
+  document.getElementById("hh2").style.display = "none";
+  DEVICES.forEach(updateButtonState);
 }
 
 // --- Start ---
