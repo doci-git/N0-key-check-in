@@ -137,7 +137,7 @@
       font-size: 1.1rem;
       border-radius: 10px;
       border: 2px solid var(--gray);
-      background-color: rgb(50, 50, 50);
+      background-color: rgb(63, 66, 63);
       color: white;
       transition: all 0.3s ease;
     }
