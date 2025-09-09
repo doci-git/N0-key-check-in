@@ -20,7 +20,7 @@ const MAX_CLICKS = 3;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 let CORRECT_CODE = localStorage.getItem("secret_code") || "2245"; // <-- dinamico
-const TIME_LIMIT_MINUTES = 1500;
+const TIME_LIMIT_MINUTES = 5;
 const SECRET_KEY = "musart_secret_123_fixed_key";
 const ADMIN_PASSWORD = "1122"; // <-- password admin
 let timeCheckInterval;
