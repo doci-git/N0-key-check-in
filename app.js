@@ -26,6 +26,10 @@ const SECRET_KEY = "musart_secret_123_fixed_key";
 const ADMIN_PASSWORD = "1122";
 let timeCheckInterval;
 
+// Aggiungere una costante per la versione del codice
+const CODE_VERSION_KEY = "code_version";
+let currentCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
+
 // --- Funzioni di storage ---
 function setStorage(key, value, minutes) {
   try {
@@ -268,6 +272,8 @@ function showAdminPanel() {
   document.getElementById("adminLogin").style.display = "none";
   document.getElementById("adminPanel").style.display = "block";
   document.getElementById("currentCode").textContent = CORRECT_CODE;
+  document.getElementById("currentCodeVersion").textContent =
+    currentCodeVersion;
   document.getElementById("currentMaxClicks").textContent = MAX_CLICKS;
   document.getElementById("currentTimeLimit").textContent = TIME_LIMIT_MINUTES;
   document.getElementById("newMaxClicks").value = MAX_CLICKS;
@@ -292,7 +298,14 @@ function handleCodeUpdate() {
 
   CORRECT_CODE = newCode;
   localStorage.setItem("secret_code", newCode);
+
+  // Incrementare la versione del codice per forzare il reinserimento
+  currentCodeVersion += 1;
+  localStorage.setItem(CODE_VERSION_KEY, currentCodeVersion.toString());
+
   document.getElementById("currentCode").textContent = CORRECT_CODE;
+  document.getElementById("currentCodeVersion").textContent =
+    currentCodeVersion;
 
   // Reset completo dello storage per forzare il reinserimento del codice
   clearStorage("usage_start_time");
@@ -310,7 +323,7 @@ function handleCodeUpdate() {
   document.getElementById("hh2").style.display = "block";
 
   alert(
-    "Codice aggiornato con successo! Ora sarà necessario inserire il nuovo codice."
+    "Codice aggiornato con successo! Tutti gli utenti dovranno inserire il nuovo codice."
   );
 }
 
@@ -350,8 +363,56 @@ function handleSettingsUpdate() {
   updateStatusBar();
 }
 
+// Aggiungere questa funzione per aggiornare la versione del codice globale
+async function updateGlobalCodeVersion() {
+  // Verifica se la versione del codice è cambiata
+  const savedVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
+  if (savedVersion < currentCodeVersion) {
+    localStorage.setItem(CODE_VERSION_KEY, currentCodeVersion.toString());
+
+    // Resettare la sessione se la versione è cambiata
+    clearStorage("usage_start_time");
+    clearStorage("usage_hash");
+    DEVICES.forEach((device) => {
+      clearStorage(device.storage_key);
+    });
+
+    // Mostrare il form di autenticazione
+    document.getElementById("controlPanel").style.display = "none";
+    document.getElementById("authCode").style.display = "block";
+    document.getElementById("auth-form").style.display = "block";
+    document.getElementById("btnCheckCode").style.display = "block";
+    document.getElementById("important").style.display = "block";
+    document.getElementById("hh2").style.display = "block";
+
+    return true;
+  }
+  return false;
+}
+
 // --- Inizializzazione ---
-function init() {
+async function init() {
+  // Verificare se la versione del codice è cambiata
+  const savedCodeVersion =
+    parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
+  if (savedCodeVersion < currentCodeVersion) {
+    // La versione del codice è cambiata, resettare la sessione
+    clearStorage("usage_start_time");
+    clearStorage("usage_hash");
+    DEVICES.forEach((device) => {
+      clearStorage(device.storage_key);
+    });
+    localStorage.setItem(CODE_VERSION_KEY, currentCodeVersion.toString());
+
+    // Mostrare il form di autenticazione
+    document.getElementById("controlPanel").style.display = "none";
+    document.getElementById("authCode").style.display = "block";
+    document.getElementById("auth-form").style.display = "block";
+    document.getElementById("btnCheckCode").style.display = "block";
+    document.getElementById("important").style.display = "block";
+    document.getElementById("hh2").style.display = "block";
+  }
+
   // codice utente
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
@@ -386,9 +447,8 @@ function init() {
     btnSettingsUpdate.addEventListener("click", handleSettingsUpdate);
 
   // tempo
-  checkTimeLimit().then((expired) => {
-    if (expired) return;
-
+  const expired = await checkTimeLimit();
+  if (!expired) {
     const startTime = getStorage("usage_start_time");
     if (startTime) {
       document.getElementById("controlPanel").style.display = "block";
@@ -400,9 +460,15 @@ function init() {
       DEVICES.forEach(updateButtonState);
       updateStatusBar();
     }
-  });
+  }
 
-  timeCheckInterval = setInterval(() => checkTimeLimit(), 1000);
+  timeCheckInterval = setInterval(async () => {
+    const expired = await checkTimeLimit();
+    if (!expired) {
+      await updateGlobalCodeVersion();
+    }
+  }, 1000);
+
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Toggle visualizzazione area admin
