@@ -16,13 +16,14 @@ const DEVICES = [
   },
 ];
 
-const MAX_CLICKS = 3;
+let MAX_CLICKS = parseInt(localStorage.getItem("max_clicks")) || 3;
+let TIME_LIMIT_MINUTES =
+  parseInt(localStorage.getItem("time_limit_minutes")) || 500;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
-let CORRECT_CODE = localStorage.getItem("secret_code") || "2245"; // <-- dinamico
-const TIME_LIMIT_MINUTES = 5;
+let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
 const SECRET_KEY = "musart_secret_123_fixed_key";
-const ADMIN_PASSWORD = "1122"; // <-- password admin
+const ADMIN_PASSWORD = "1122";
 let timeCheckInterval;
 
 // --- Funzioni di storage ---
@@ -37,6 +38,7 @@ function setStorage(key, value, minutes) {
     console.error("Storage error:", e);
   }
 }
+
 function getStorage(key) {
   try {
     const localValue = localStorage.getItem(key);
@@ -51,6 +53,7 @@ function getStorage(key) {
   }
   return null;
 }
+
 function clearStorage(key) {
   try {
     localStorage.removeItem(key);
@@ -77,6 +80,7 @@ async function setUsageStartTime() {
   setStorage("usage_hash", hash, TIME_LIMIT_MINUTES);
   updateStatusBar();
 }
+
 async function checkTimeLimit() {
   const startTime = getStorage("usage_start_time");
   const storedHash = getStorage("usage_hash");
@@ -95,6 +99,7 @@ async function checkTimeLimit() {
   updateStatusBar();
   return false;
 }
+
 function showFatalError(message) {
   clearInterval(timeCheckInterval);
   document.body.innerHTML = `
@@ -104,6 +109,7 @@ function showFatalError(message) {
       background:#121111;color:#ff6b6b;font-size:24px;text-align:center;
       padding:20px;z-index:9999;">${message}</div>`;
 }
+
 function showSessionExpired() {
   clearInterval(timeCheckInterval);
   document.getElementById("expiredOverlay").classList.remove("hidden");
@@ -129,18 +135,22 @@ function updateStatusBar() {
   const mainDoorCounter = document.getElementById("mainDoorCounter");
   const aptDoorCounter = document.getElementById("aptDoorCounter");
   const timeRemaining = document.getElementById("timeRemaining");
+
   if (mainDoorCounter) {
     mainDoorCounter.textContent = `${getClicksLeft(
       DEVICES[0].storage_key
     )} click left`;
   }
+
   if (aptDoorCounter) {
     aptDoorCounter.textContent = `${getClicksLeft(
       DEVICES[1].storage_key
     )} click left`;
   }
+
   const startTime = getStorage("usage_start_time");
   if (!startTime || !timeRemaining) return;
+
   const now = Date.now();
   const minutesPassed = (now - parseInt(startTime, 10)) / (1000 * 60);
   const minutesLeft = Math.max(
@@ -148,9 +158,11 @@ function updateStatusBar() {
     Math.floor(TIME_LIMIT_MINUTES - minutesPassed)
   );
   const secondsLeft = Math.max(0, Math.floor(60 - (minutesPassed % 1) * 60));
+
   timeRemaining.textContent = `${minutesLeft
     .toString()
     .padStart(2, "0")}:${secondsLeft.toString().padStart(2, "0")}`;
+
   if (minutesLeft < 1) timeRemaining.style.color = "var(--error)";
   else if (minutesLeft < 5) timeRemaining.style.color = "var(--warning)";
   else timeRemaining.style.color = "var(--primary)";
@@ -161,15 +173,19 @@ function getClicksLeft(key) {
   const stored = getStorage(key);
   return stored === null ? MAX_CLICKS : parseInt(stored, 10);
 }
+
 function setClicksLeft(key, count) {
   setStorage(key, count.toString(), TIME_LIMIT_MINUTES);
   updateStatusBar();
 }
+
 function updateButtonState(device) {
   const btn = document.getElementById(device.button_id);
   if (!btn) return;
+
   const clicksLeft = getClicksLeft(device.storage_key);
   btn.disabled = clicksLeft <= 0;
+
   if (clicksLeft <= 0) {
     btn.classList.add("btn-error");
     btn.classList.remove("btn-success");
@@ -183,6 +199,7 @@ function updateButtonState(device) {
 function showDevicePopup(device, clicksLeft) {
   const popup = document.getElementById(`popup-${device.button_id}`);
   if (!popup) return;
+
   const text = document.getElementById(`popup-text-${device.button_id}`);
   if (text) {
     if (clicksLeft > 0) {
@@ -195,9 +212,11 @@ function showDevicePopup(device, clicksLeft) {
         <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
     }
   }
+
   popup.style.display = "flex";
   if (clicksLeft > 0) setTimeout(() => closePopup(device.button_id), 3000);
 }
+
 function closePopup(buttonId) {
   const popup = document.getElementById(`popup-${buttonId}`);
   if (popup) popup.style.display = "none";
@@ -206,15 +225,18 @@ function closePopup(buttonId) {
 // --- Attivazione device ---
 async function activateDevice(device) {
   if (await checkTimeLimit()) return;
+
   let clicksLeft = getClicksLeft(device.storage_key);
   if (clicksLeft <= 0) {
     showDevicePopup(device, clicksLeft);
     updateButtonState(device);
     return;
   }
+
   clicksLeft--;
   setClicksLeft(device.storage_key, clicksLeft);
   updateButtonState(device);
+
   try {
     const response = await fetch(BASE_URL_SET, {
       method: "POST",
@@ -227,6 +249,7 @@ async function activateDevice(device) {
         turn: "on",
       }),
     });
+
     if (response.ok) {
       showDevicePopup(device, clicksLeft);
     } else {
@@ -245,7 +268,12 @@ function showAdminPanel() {
   document.getElementById("adminLogin").style.display = "none";
   document.getElementById("adminPanel").style.display = "block";
   document.getElementById("currentCode").textContent = CORRECT_CODE;
+  document.getElementById("currentMaxClicks").textContent = MAX_CLICKS;
+  document.getElementById("currentTimeLimit").textContent = TIME_LIMIT_MINUTES;
+  document.getElementById("newMaxClicks").value = MAX_CLICKS;
+  document.getElementById("newTimeLimit").value = TIME_LIMIT_MINUTES;
 }
+
 function handleAdminLogin() {
   const pass = document.getElementById("adminPass").value.trim();
   if (pass === ADMIN_PASSWORD) {
@@ -254,16 +282,72 @@ function handleAdminLogin() {
     alert("Password admin errata!");
   }
 }
+
 function handleCodeUpdate() {
   const newCode = document.getElementById("newCode").value.trim();
   if (!newCode) {
     alert("Inserisci un codice valido");
     return;
   }
+
   CORRECT_CODE = newCode;
   localStorage.setItem("secret_code", newCode);
   document.getElementById("currentCode").textContent = CORRECT_CODE;
-  alert("Codice aggiornato con successo!");
+
+  // Reset completo dello storage per forzare il reinserimento del codice
+  clearStorage("usage_start_time");
+  clearStorage("usage_hash");
+  DEVICES.forEach((device) => {
+    clearStorage(device.storage_key);
+  });
+
+  // Nascondere il pannello di controllo e mostrare di nuovo il form di autenticazione
+  document.getElementById("controlPanel").style.display = "none";
+  document.getElementById("authCode").style.display = "block";
+  document.getElementById("auth-form").style.display = "block";
+  document.getElementById("btnCheckCode").style.display = "block";
+  document.getElementById("important").style.display = "block";
+  document.getElementById("hh2").style.display = "block";
+
+  alert(
+    "Codice aggiornato con successo! Ora sarà necessario inserire il nuovo codice."
+  );
+}
+
+function handleSettingsUpdate() {
+  const newMaxClicks = document.getElementById("newMaxClicks").value.trim();
+  const newTimeLimit = document.getElementById("newTimeLimit").value.trim();
+
+  if (!newMaxClicks || isNaN(newMaxClicks) || parseInt(newMaxClicks) <= 0) {
+    alert("Inserisci un numero valido per i click massimi");
+    return;
+  }
+
+  if (!newTimeLimit || isNaN(newTimeLimit) || parseInt(newTimeLimit) <= 0) {
+    alert("Inserisci un numero valido per il tempo limite");
+    return;
+  }
+
+  MAX_CLICKS = parseInt(newMaxClicks);
+  TIME_LIMIT_MINUTES = parseInt(newTimeLimit);
+
+  localStorage.setItem("max_clicks", MAX_CLICKS);
+  localStorage.setItem("time_limit_minutes", TIME_LIMIT_MINUTES);
+
+  // Aggiornare i contatori dei click
+  DEVICES.forEach((device) => {
+    const currentClicks = getClicksLeft(device.storage_key);
+    if (currentClicks > MAX_CLICKS) {
+      setClicksLeft(device.storage_key, MAX_CLICKS);
+    }
+    updateButtonState(device);
+  });
+
+  document.getElementById("currentMaxClicks").textContent = MAX_CLICKS;
+  document.getElementById("currentTimeLimit").textContent = TIME_LIMIT_MINUTES;
+
+  alert("Impostazioni aggiornate con successo!");
+  updateStatusBar();
 }
 
 // --- Inizializzazione ---
@@ -292,12 +376,19 @@ function init() {
   // admin
   const btnAdminLogin = document.getElementById("btnAdminLogin");
   if (btnAdminLogin) btnAdminLogin.addEventListener("click", handleAdminLogin);
+
   const btnCodeUpdate = document.getElementById("btnCodeUpdate");
   if (btnCodeUpdate) btnCodeUpdate.addEventListener("click", handleCodeUpdate);
+
+  // Aggiungere l'event listener per il nuovo pulsante di aggiornamento impostazioni
+  const btnSettingsUpdate = document.getElementById("btnSettingsUpdate");
+  if (btnSettingsUpdate)
+    btnSettingsUpdate.addEventListener("click", handleSettingsUpdate);
 
   // tempo
   checkTimeLimit().then((expired) => {
     if (expired) return;
+
     const startTime = getStorage("usage_start_time");
     if (startTime) {
       document.getElementById("controlPanel").style.display = "block";
@@ -338,8 +429,10 @@ async function handleCodeSubmit() {
     alert("Codice errato! Riprova.");
     return;
   }
+
   await setUsageStartTime();
   if (await checkTimeLimit()) return;
+
   document.getElementById("controlPanel").style.display = "block";
   document.getElementById("authCode").style.display = "none";
   document.getElementById("auth-form").style.display = "none";
