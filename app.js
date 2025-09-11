@@ -18,7 +18,8 @@ const DEVICES = [
   },
   {
     id: "3494547ab161",
-    auth_key:"MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+    auth_key:
+      "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
     storage_key: "clicks_ExtraDoor1",
     button_id: "ExtraDoor1",
     visible: false,
@@ -34,13 +35,14 @@ const DEVICES = [
 
 let MAX_CLICKS = parseInt(localStorage.getItem("max_clicks")) || 3;
 let TIME_LIMIT_MINUTES =
-  parseInt(localStorage.getItem("time_limit_minutes")) || 5000;
+  parseInt(localStorage.getItem("time_limit_minutes")) || 5;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
 const SECRET_KEY = "musart_secret_123_fixed_key";
 const ADMIN_PASSWORD = "1122";
 let timeCheckInterval;
+let currentDevice = null; // Per tenere traccia della porta selezionata
 
 // Aggiungere una costante per la versione del codice
 const CODE_VERSION_KEY = "code_version";
@@ -123,11 +125,11 @@ async function checkTimeLimit() {
 function showFatalError(message) {
   clearInterval(timeCheckInterval);
   document.body.innerHTML = `
-    <div style="
-      position: fixed;top:0;left:0;width:100%;height:100vh;
-      display:flex;justify-content:center;align-items:center;
-      background:#121111;color:#ff6b6b;font-size:24px;text-align:center;
-      padding:20px;z-index:9999;">${message}</div>`;
+        <div style="
+          position: fixed;top:0;left:0;width:100%;height:100vh;
+          display:flex;justify-content:center;align-items:center;
+          background:#121111;color:#ff6b6b;font-size:24px;text-align:center;
+          padding:20px;z-index:9999;">${message}</div>`;
 }
 
 function showSessionExpired() {
@@ -218,21 +220,21 @@ function updateButtonState(device) {
 // --- Popup ---
 function showDevicePopup(device, clicksLeft) {
   const popup = document.getElementById(`popup-${device.button_id}`);
-   if (!popup) {
-     console.error(`Popup for ${device.button_id} not found`);
-     return;
-   }
+  if (!popup) {
+    console.error(`Popup for ${device.button_id} not found`);
+    return;
+  }
 
   const text = document.getElementById(`popup-text-${device.button_id}`);
   if (text) {
     if (clicksLeft > 0) {
       text.innerHTML = `<i class="fas fa-check-circle" style="color:#4CAF50;font-size:2.5rem;margin-bottom:15px;"></i>
-        <div><strong>${clicksLeft}</strong> Click Left</div>
-        <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
+            <div><strong>${clicksLeft}</strong> Click Left</div>
+            <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
     } else {
       text.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#FFC107;font-size:2.5rem;margin-bottom:15px;"></i>
-        <div><strong>No more clicks left!</strong></div>
-        <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
+            <div><strong>No more clicks left!</strong></div>
+            <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
     }
   }
 
@@ -243,6 +245,23 @@ function showDevicePopup(device, clicksLeft) {
 function closePopup(buttonId) {
   const popup = document.getElementById(`popup-${buttonId}`);
   if (popup) popup.style.display = "none";
+}
+
+// --- Popup di conferma ---
+function showConfirmationPopup(device) {
+  currentDevice = device;
+  const doorName = device.button_id
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase());
+  document.getElementById(
+    "confirmationMessage"
+  ).textContent = `Are you sure you want to unlock the ${doorName}?`;
+  document.getElementById("confirmationPopup").style.display = "flex";
+}
+
+function closeConfirmationPopup() {
+  document.getElementById("confirmationPopup").style.display = "none";
+  currentDevice = null;
 }
 
 // --- Attivazione device ---
@@ -297,10 +316,6 @@ function showAdminPanel() {
   document.getElementById("currentTimeLimit").textContent = TIME_LIMIT_MINUTES;
   document.getElementById("newMaxClicks").value = MAX_CLICKS;
   document.getElementById("newTimeLimit").value = TIME_LIMIT_MINUTES;
-
-  // Aggiorna lo stato dei pulsanti extra nel pannello admin
-  // document.getElementById("extraDoor1Visible").checked = DEVICES[2].visible;
-  // document.getElementById("extraDoor2Visible").checked = DEVICES[3].visible;
 }
 
 function handleAdminLogin() {
@@ -343,7 +358,7 @@ function handleCodeUpdate() {
   document.getElementById("auth-form").style.display = "block";
   document.getElementById("btnCheckCode").style.display = "block";
   document.getElementById("important").style.display = "block";
-  document.getElementById("hh2").style.display = "block";
+  // document.getElementById("hh2").style.display = "block";
 
   alert(
     "Codice aggiornato con successo! Tutti gli utenti dovranno inserire il nuovo codice."
@@ -384,36 +399,6 @@ function handleSettingsUpdate() {
 
   alert("Impostazioni aggiornate con successo!");
   updateStatusBar();
-}
-
-// Gestione visibilità pulsanti extra
-function toggleExtraDoorVisibility(doorIndex, isVisible) {
-  DEVICES[doorIndex].visible = isVisible;
-  const buttonElement = document.getElementById(DEVICES[doorIndex].button_id);
-  const containerElement = document.getElementById(
-    `${DEVICES[doorIndex].button_id}Container`
-  );
-
-  if (buttonElement && containerElement) {
-    if (isVisible) {
-      containerElement.style.display = "block";
-      updateButtonState(DEVICES[doorIndex]);
-    } else {
-      containerElement.style.display = "none";
-    }
-  }
-}
-
-function handleExtraDoorsVisibility() {
-  const extraDoor1Visible =
-    document.getElementById("extraDoor1Visible").checked;
-  const extraDoor2Visible =
-    document.getElementById("extraDoor2Visible").checked;
-
-  toggleExtraDoorVisibility(2, extraDoor1Visible);
-  toggleExtraDoorVisibility(3, extraDoor2Visible);
-
-  alert("Visibilità porte extra aggiornata!");
 }
 
 // Aggiungere questa funzione per aggiornare la versione del codice globale
@@ -486,11 +471,27 @@ async function init() {
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
 
-  // dispositivi
+  // dispositivi - modificato per mostrare il popup di conferma
   DEVICES.forEach((device) => {
     const btn = document.getElementById(device.button_id);
-    if (btn) btn.addEventListener("click", () => activateDevice(device));
+    if (btn) {
+      btn.addEventListener("click", () => {
+        showConfirmationPopup(device);
+      });
+    }
   });
+
+  // Gestione conferma popup
+  document.getElementById("confirmYes").addEventListener("click", () => {
+    if (currentDevice) {
+      activateDevice(currentDevice);
+      closeConfirmationPopup();
+    }
+  });
+
+  document
+    .getElementById("confirmNo")
+    .addEventListener("click", closeConfirmationPopup);
 
   // chiusura popup
   document.querySelectorAll(".popup .btn").forEach((button) => {
@@ -510,20 +511,9 @@ async function init() {
   const btnCodeUpdate = document.getElementById("btnCodeUpdate");
   if (btnCodeUpdate) btnCodeUpdate.addEventListener("click", handleCodeUpdate);
 
-  // Aggiungere l'event listener per il nuovo pulsante di aggiornamento impostazioni
   const btnSettingsUpdate = document.getElementById("btnSettingsUpdate");
   if (btnSettingsUpdate)
     btnSettingsUpdate.addEventListener("click", handleSettingsUpdate);
-
-  // Aggiungere l'event listener per la visibilità delle porte extra
-  const btnExtraDoorsVisibility = document.getElementById(
-    "btnExtraDoorsVisibility"
-  );
-  if (btnExtraDoorsVisibility)
-    btnExtraDoorsVisibility.addEventListener(
-      "click",
-      handleExtraDoorsVisibility
-    );
 
   // tempo
   const expired = await checkTimeLimit();
@@ -535,7 +525,7 @@ async function init() {
       document.getElementById("auth-form").style.display = "none";
       document.getElementById("btnCheckCode").style.display = "none";
       document.getElementById("important").style.display = "none";
-      document.getElementById("hh2").style.display = "none";
+      // document.getElementById("hh2").style.display = "none";
       DEVICES.forEach(updateButtonState);
       updateStatusBar();
     }
@@ -583,7 +573,7 @@ async function handleCodeSubmit() {
   document.getElementById("auth-form").style.display = "none";
   document.getElementById("btnCheckCode").style.display = "none";
   document.getElementById("important").style.display = "none";
-  document.getElementById("hh2").style.display = "none";
+  // document.getElementById("hh2").style.display = "none";
   DEVICES.forEach(updateButtonState);
   updateStatusBar();
 }
