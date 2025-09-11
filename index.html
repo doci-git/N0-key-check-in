@@ -27,171 +27,223 @@
   </div>
  
   <div class="container" id="test2">
-    <div class="section1 fade-in">
-      <h2 class="section-title">MusArt <br>Check-in Information</h2>
-      
-      <!-- <div class="security-notice">
-         <h5><i class="fa-solid fa-door-open"></i>  MusArt check-in</h5>
-        <p>All steps you need to follow for a smooth check-in!</p>
-      </div> --> 
-      
-      <div class="video-container">
-        <video controls onloadstart="this.volume=0.1">
-          <source src="check-in4.mp4" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-      </div>
-    </div>
-
-    <div class="section fade-in">
-      <div class="auth-container">
-        <h2 class="section-title hh2" id="hh2">Door Access</h2>
+      <div class="section1 fade-in">
+        <h2 class="section-title">MusArt <br>Check-in Information</h2>
         
-        <div class="auth-form" id="auth-form">
-          <div class="input-group">
-            <input type="number" id="authCode" placeholder="Enter the access code we sent you" inputmode="numeric" pattern="[0-9]*">
+        <!-- <div class="security-notice">
+          <h5><i class="fa-solid fa-door-open"></i>  MusArt check-in</h5>
+          <p>All steps you need to follow for a smooth check-in!</p>
+        </div> --> 
+        
+        <div class="video-container">
+          <video controls onloadstart="this.volume=0.1">
+            <source src="check-in4.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </div>
+
+      <div class="section fade-in">
+        <div class="auth-container">
+          <h2 class="section-title hh2" id="hh2">Door Access</h2>
+          
+          <div class="auth-form" id="auth-form">
+            <div class="input-group">
+              <input type="number" id="authCode" placeholder="Enter the access code we sent you" inputmode="numeric" pattern="[0-9]*">
+            </div>
+            <button id="btnCheckCode" class="btn pulse">
+              <i class="fas fa-unlock-alt"></i> Submit Code
+            </button>
           </div>
-          <button id="btnCheckCode" class="btn pulse">
-            <i class="fas fa-unlock-alt"></i> Submit Code
+          
+          <div id="controlPanel" class="control-panel">
+          
+            
+            <div class="door-control fade-in">
+              <h3><i class="fas fa-building"></i> Main Entrance Door</h3>
+              <button id="MainDoor" class="btn">
+                <i class="fas fa-key"></i> Unlock Main Door
+              </button>
+            </div>
+
+            <div class="door-control fade-in">
+              <h3><i class="fas fa-home"></i> Apartment Door</h3>
+              <button id="AptDoor" class="btn">
+                <i class="fas fa-key"></i> Unlock Apartment Door
+              </button>
+            </div>
+
+            <div id="ExtraDoor1Container" class="door-control fade-in" style="display: none;">
+            <h3><i class="fas fa-door-open"></i> Extra Door 1</h3>
+            <button id="ExtraDoor1" class="btn">
+              <i class="fas fa-key"></i> Unlock Extra Door 1
+            </button>
+          </div>
+
+          <div id="ExtraDoor2Container" class="door-control fade-in" style="display: none;">
+            <h3><i class="fas fa-door-open"></i> Extra Door 2</h3>
+            <button id="ExtraDoor2" class="btn">
+              <i class="fas fa-key"></i> Unlock Extra Door 2
+            </button>
+          </div>
+            
+            <br>
+              <div class="warning-box" id="warning-box">
+              <h5><i class="fas fa-exclamation-triangle"></i> Limited Access</h5>
+                <p>
+                  Each button can be used a maximum of <strong>2 times</strong>.  
+                  Please use it only for check-in. <br><br>  
+                  Access will automatically expire 12 hours after the first click.
+                </p>
+            </div>
+            
+            <!-- <div class="status-bar">
+              <div class="status-item">
+                <div>Tempo rimanente</div>
+                <div id="timeRemaining" class="status-value">02:00</div>
+              </div>
+              <div class="status-item">
+                <div>Stato sicurezza</div>
+                <div id="securityStatus" class="status-value">Attiva</div>
+              </div>
+            </div> -->
+          </div>
+          
+          <div id="sessionExpired" class="session-expired hidden">
+            <h3><i class="fas fa-clock"></i> Sessione Scaduta</h3>
+            <p>L'accesso è stato disattivato per motivi di sicurezza. Per sbloccare nuovamente le porte, richiedi un nuovo codice di accesso.</p>
+            <a class="btn btn-error" href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need a new access code">
+              <i class="fab fa-whatsapp"></i> Richiedi Assistenza
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Popups -->
+      <div id="popup-MainDoor" class="popup">
+        <div class="popup-content">
+          <h2><i class="fas fa-building"></i> Main Door</h2>
+          <p id="popup-text-MainDoor"></p>
+          <button class="btn" onclick="closePopup('MainDoor')">
+            <i class="fas fa-times"></i> Close
           </button>
         </div>
-        
-        <div id="controlPanel" class="control-panel">
-        
-          
-          <div class="door-control fade-in">
-            <h3><i class="fas fa-building"></i> Main Entrance Door</h3>
-            <button id="MainDoor" class="btn">
-              <i class="fas fa-key"></i> Unlock Main Door
-            </button>
-          </div>
+      </div>
 
-          <div class="door-control fade-in">
-            <h3><i class="fas fa-home"></i> Apartment Door</h3>
-            <button id="AptDoor" class="btn">
-              <i class="fas fa-key"></i> Unlock Apartment Door
-            </button>
-          </div>
-          <br>
-            <div class="warning-box" id="warning-box">
-            <h5><i class="fas fa-exclamation-triangle"></i> Limited Access</h5>
-              <p>
-                Each button can be used a maximum of <strong>2 times</strong>.  
-                Please use it only for check-in. <br><br>  
-                Access will automatically expire 12 hours after the first click.
-              </p>
-          </div>
-          
-          <!-- <div class="status-bar">
-            <div class="status-item">
-              <div>Tempo rimanente</div>
-              <div id="timeRemaining" class="status-value">02:00</div>
-            </div>
-            <div class="status-item">
-              <div>Stato sicurezza</div>
-              <div id="securityStatus" class="status-value">Attiva</div>
-            </div>
-          </div> -->
+      <div id="popup-AptDoor" class="popup">
+        <div class="popup-content">
+          <h2><i class="fas fa-home"></i> Apartment Door</h2>
+          <p id="popup-text-AptDoor"></p>
+          <button class="btn" onclick="closePopup('AptDoor')">
+            <i class="fas fa-times"></i> Close
+          </button>
         </div>
-        
-        <div id="sessionExpired" class="session-expired hidden">
-          <h3><i class="fas fa-clock"></i> Sessione Scaduta</h3>
-          <p>L'accesso è stato disattivato per motivi di sicurezza. Per sbloccare nuovamente le porte, richiedi un nuovo codice di accesso.</p>
-          <a class="btn btn-error" href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need a new access code">
-            <i class="fab fa-whatsapp"></i> Richiedi Assistenza
+      </div>
+
+        <!-- Popup per Extra Door 1 -->
+      <div id="popup-ExtraDoor1" class="popup">
+        <div class="popup-content">
+          <h2><i class="fas fa-door-open"></i> Extra Door 1</h2>
+          <p id="popup-text-ExtraDoor1"></p>
+          <button class="btn" onclick="closePopup('ExtraDoor1')">
+            <i class="fas fa-times"></i> Close
+          </button>
+        </div>
+      </div>
+
+      <!-- Popup per Extra Door 2 -->
+      <div id="popup-ExtraDoor2" class="popup">
+        <div class="popup-content">
+          <h2><i class="fas fa-door-open"></i> Extra Door 2</h2>
+          <p id="popup-text-ExtraDoor2"></p>
+          <button class="btn" onclick="closePopup('ExtraDoor2')">
+            <i class="fas fa-times"></i> Close
+          </button>
+        </div>
+      </div>
+
+        <div class="section important fade-in" id="important">
+          <h3><i class="fas fa-exclamation-circle"></i> IMPORTANT LEGAL REQUIREMENT</h3>
+          <p>
+          Before sending the access code, according to Italian law, I must register all guests on the official tourist portal. Please send me photos of everyone's passports via Airbnb/Booking messaging or WhatsApp.
+          </p>
+        </div>
+
+        <div class="contact-section">
+          <h3>Need Assistance?</h3>
+          <p>Contact us directly for support</p>
+          <a class="contact-btn" href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need assistance with my check-in">
+            <i class="fab fa-whatsapp"></i>
           </a>
         </div>
       </div>
-    </div>
 
-    <!-- Popups -->
-    <div id="popup-MainDoor" class="popup">
-      <div class="popup-content">
-        <h2><i class="fas fa-building"></i> Main Door</h2>
-        <p id="popup-text-MainDoor"></p>
-        <button class="btn" onclick="closePopup('MainDoor')">
-          <i class="fas fa-times"></i> Close
-        </button>
+
+      <div class="boxes">
+        <a class="buttones" href="#popup1"> Wifi Info</a>
       </div>
-    </div>
 
-    <div id="popup-AptDoor" class="popup">
-      <div class="popup-content">
-        <h2><i class="fas fa-home"></i> Apartment Door</h2>
-        <p id="popup-text-AptDoor"></p>
-        <button class="btn" onclick="closePopup('AptDoor')">
-          <i class="fas fa-times"></i> Close
-        </button>
-      </div>
-    </div>
-
-    <div class="section important fade-in" id="important">
-      <h3><i class="fas fa-exclamation-circle"></i> IMPORTANT LEGAL REQUIREMENT</h3>
-      <p>
-       Before sending the access code, according to Italian law, I must register all guests on the official tourist portal. Please send me photos of everyone's passports via Airbnb/Booking messaging or WhatsApp.
-      </p>
-    </div>
-
-    <div class="contact-section">
-      <h3>Need Assistance?</h3>
-      <p>Contact us directly for support</p>
-      <a class="contact-btn" href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need assistance with my check-in">
-        <i class="fab fa-whatsapp"></i>
-      </a>
-    </div>
-  </div>
-
-
-    <div class="boxes">
-      <a class="buttones" href="#popup1"> Wifi Info</a>
-    </div>
-
-    <div id="popup1" class="overlay1">
-      <div class="popup1">
-        <h3>Wifi info:</h3>
-        <a class="close1" href="#">&times;</a>
-        <div class="content1">
-          If you don’t have mobile internet when you arrive, you can still connect to our Wi-Fi standing in front door. Look for the network named This way<br> <br>
-          <strong>Wifi Name: <br> 
-          Vodafone-E45457264 <br>
-          Password: <br>
-          JxPdn3db7C2nPGnc</strong>
+      <div id="popup1" class="overlay1">
+        <div class="popup1">
+          <h3>Wifi info:</h3>
+          <a class="close1" href="#">&times;</a>
+          <div class="content1">
+            If you don’t have mobile internet when you arrive, you can still connect to our Wi-Fi standing in front door. Look for the network named This way<br> <br>
+            <strong>Wifi Name: <br> 
+            Vodafone-E45457264 <br>
+            Password: <br>
+            JxPdn3db7C2nPGnc</strong>
+          </div>
         </div>
       </div>
-    </div>
 
 
-<footer class="footer">
-  <button class="admin-toggles">⚙️</button>
-  <p>© 2025 MusArt - All rights reserved</p>
-  <button id="toggleAdmin" class="admin-toggle">⚙️</button>
-</footer>
+      <footer class="footer">
+        <button class="admin-toggles">⚙️</button>
+        <p>© 2025 MusArt - All rights reserved</p>
+        <button id="toggleAdmin" class="admin-toggle">⚙️</button>
+      </footer>
 
-<!-- Area Admin (nascosta) -->
-<div id="adminArea" class="admin-area">
-  <div id="adminLogin">
-    <h3>Login Admin</h3>
-    <input type="password" id="adminPass" placeholder="Password Admin">
-    <button id="btnAdminLogin">Login</button>
+      <!-- Area Admin (nascosta) -->
+        <div id="adminArea" class="admin-area">
+          <div id="adminLogin">
+            <h3>Login Admin</h3>
+            <input type="password" id="adminPass" placeholder="Password Admin">
+            <button id="btnAdminLogin">Login</button>
+          </div>
+
+        <div id="adminPanel" style="display:none;">
+          <h3>Gestione Codice Segreto</h3>
+          <p class="pp">Codice attuale: <span id="currentCode"></span></p>
+          <p class="pp">Versione codice: <span id="currentCodeVersion"></span></p>
+          <input type="text" id="newCode" placeholder="Nuovo Codice">
+          <button id="btnCodeUpdate">Aggiorna Codice</button>
+
+          <br><br>
+          
+          <h3>Impostazioni Sistema</h3>
+          <p class="pp">Click massimi attuali: <span id="currentMaxClicks"></span></p>
+          <input type="number" id="newMaxClicks" placeholder="Nuovo numero di click massimi" min="1">
+          
+          <p class="pp">Tempo limite attuale (minuti): <span id="currentTimeLimit"></span></p>
+          <input type="number" id="newTimeLimit" placeholder="Nuovo tempo limite (minuti)" min="1">
+          
+          <button id="btnSettingsUpdate">Aggiorna Impostazioni</button>
+      
+          <br><br>
+
+          <!-- ... altri controlli ... -->
+          <!-- <h3>Gestione Porte Extra</h3>
+          <div>
+            <input type="checkbox" id="extraDoor1Visible"> Mostra Extra Door 1
+          </div>
+          <div>
+            <input type="checkbox" id="extraDoor2Visible"> Mostra Extra Door 2
+          </div>
+          <button id="btnExtraDoorsVisibility">Applica Visibilità</button> -->
+        </div>
+      </div>
   </div>
-
-  <div id="adminPanel" style="display:none;">
-  <h3>Gestione Codice Segreto</h3>
-  <p class="pp">Codice attuale: <span id="currentCode"></span></p>
-  <p class="pp">Versione codice: <span id="currentCodeVersion"></span></p>
-  <input type="text" id="newCode" placeholder="Nuovo Codice">
-  <button id="btnCodeUpdate">Aggiorna Codice</button>
-  
-  <h3>Impostazioni Sistema</h3>
-  <p class="pp">Click massimi attuali: <span id="currentMaxClicks"></span></p>
-  <input type="number" id="newMaxClicks" placeholder="Nuovo numero di click massimi" min="1">
-  
-  <p class="pp">Tempo limite attuale (minuti): <span id="currentTimeLimit"></span></p>
-  <input type="number" id="newTimeLimit" placeholder="Nuovo tempo limite (minuti)" min="1">
-  
-  <button id="btnSettingsUpdate">Aggiorna Impostazioni</button>
-</div>
-</div>
 
 
 </body>

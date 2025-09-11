@@ -131,7 +131,7 @@
       position: relative;
     }
 
-    input[type="number"] {
+    input[type="number"],input[type="text"]  {
       width: 100%;
       padding: 16px 20px;
       font-size: 1.1rem;

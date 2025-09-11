@@ -6,6 +6,7 @@ const DEVICES = [
       "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
     storage_key: "clicks_MainDoor",
     button_id: "MainDoor",
+    visible: true,
   },
   {
     id: "34945478d595",
@@ -13,12 +14,27 @@ const DEVICES = [
       "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
     storage_key: "clicks_AptDoor",
     button_id: "AptDoor",
+    visible: true,
+  },
+  {
+    id: "3494547ab161",
+    auth_key:"MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+    storage_key: "clicks_ExtraDoor1",
+    button_id: "ExtraDoor1",
+    visible: false,
+  },
+  {
+    id: "placeholder_id_2",
+    auth_key: "placeholder_auth_key_2",
+    storage_key: "clicks_ExtraDoor2",
+    button_id: "ExtraDoor2",
+    visible: false,
   },
 ];
 
 let MAX_CLICKS = parseInt(localStorage.getItem("max_clicks")) || 3;
 let TIME_LIMIT_MINUTES =
-  parseInt(localStorage.getItem("time_limit_minutes")) || 500;
+  parseInt(localStorage.getItem("time_limit_minutes")) || 5000;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
@@ -202,7 +218,10 @@ function updateButtonState(device) {
 // --- Popup ---
 function showDevicePopup(device, clicksLeft) {
   const popup = document.getElementById(`popup-${device.button_id}`);
-  if (!popup) return;
+   if (!popup) {
+     console.error(`Popup for ${device.button_id} not found`);
+     return;
+   }
 
   const text = document.getElementById(`popup-text-${device.button_id}`);
   if (text) {
@@ -278,6 +297,10 @@ function showAdminPanel() {
   document.getElementById("currentTimeLimit").textContent = TIME_LIMIT_MINUTES;
   document.getElementById("newMaxClicks").value = MAX_CLICKS;
   document.getElementById("newTimeLimit").value = TIME_LIMIT_MINUTES;
+
+  // Aggiorna lo stato dei pulsanti extra nel pannello admin
+  // document.getElementById("extraDoor1Visible").checked = DEVICES[2].visible;
+  // document.getElementById("extraDoor2Visible").checked = DEVICES[3].visible;
 }
 
 function handleAdminLogin() {
@@ -363,6 +386,36 @@ function handleSettingsUpdate() {
   updateStatusBar();
 }
 
+// Gestione visibilità pulsanti extra
+function toggleExtraDoorVisibility(doorIndex, isVisible) {
+  DEVICES[doorIndex].visible = isVisible;
+  const buttonElement = document.getElementById(DEVICES[doorIndex].button_id);
+  const containerElement = document.getElementById(
+    `${DEVICES[doorIndex].button_id}Container`
+  );
+
+  if (buttonElement && containerElement) {
+    if (isVisible) {
+      containerElement.style.display = "block";
+      updateButtonState(DEVICES[doorIndex]);
+    } else {
+      containerElement.style.display = "none";
+    }
+  }
+}
+
+function handleExtraDoorsVisibility() {
+  const extraDoor1Visible =
+    document.getElementById("extraDoor1Visible").checked;
+  const extraDoor2Visible =
+    document.getElementById("extraDoor2Visible").checked;
+
+  toggleExtraDoorVisibility(2, extraDoor1Visible);
+  toggleExtraDoorVisibility(3, extraDoor2Visible);
+
+  alert("Visibilità porte extra aggiornata!");
+}
+
 // Aggiungere questa funzione per aggiornare la versione del codice globale
 async function updateGlobalCodeVersion() {
   // Verifica se la versione del codice è cambiata
@@ -413,6 +466,22 @@ async function init() {
     document.getElementById("hh2").style.display = "block";
   }
 
+  // Inizializza la visibilità dei pulsanti extra
+  DEVICES.forEach((device, index) => {
+    if (index >= 2) {
+      // Solo per i dispositivi extra
+      const containerElement = document.getElementById(
+        `${device.button_id}Container`
+      );
+      if (containerElement) {
+        containerElement.style.display = device.visible ? "block" : "none";
+        if (device.visible) {
+          updateButtonState(device);
+        }
+      }
+    }
+  });
+
   // codice utente
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
@@ -445,6 +514,16 @@ async function init() {
   const btnSettingsUpdate = document.getElementById("btnSettingsUpdate");
   if (btnSettingsUpdate)
     btnSettingsUpdate.addEventListener("click", handleSettingsUpdate);
+
+  // Aggiungere l'event listener per la visibilità delle porte extra
+  const btnExtraDoorsVisibility = document.getElementById(
+    "btnExtraDoorsVisibility"
+  );
+  if (btnExtraDoorsVisibility)
+    btnExtraDoorsVisibility.addEventListener(
+      "click",
+      handleExtraDoorsVisibility
+    );
 
   // tempo
   const expired = await checkTimeLimit();
