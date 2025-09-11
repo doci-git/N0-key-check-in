@@ -137,7 +137,7 @@ function showSessionExpired() {
   document.getElementById("expiredOverlay").classList.remove("hidden");
   document.getElementById("controlPanel").classList.add("hidden");
   document.getElementById("sessionExpired").classList.remove("hidden");
-  // document.getElementById("test2").style.display = "none";
+  document.getElementById("test2").style.display = "none";
   DEVICES.forEach((device) => {
     const btn = document.getElementById(device.button_id);
     if (btn) {
