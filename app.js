@@ -137,7 +137,7 @@ function showSessionExpired() {
   document.getElementById("expiredOverlay").classList.remove("hidden");
   document.getElementById("controlPanel").classList.add("hidden");
   document.getElementById("sessionExpired").classList.remove("hidden");
-  document.getElementById("test2").style.display = "none";
+  // document.getElementById("test2").style.display = "none";
   DEVICES.forEach((device) => {
     const btn = document.getElementById(device.button_id);
     if (btn) {
@@ -421,7 +421,7 @@ async function updateGlobalCodeVersion() {
     document.getElementById("auth-form").style.display = "block";
     document.getElementById("btnCheckCode").style.display = "block";
     document.getElementById("important").style.display = "block";
-    document.getElementById("hh2").style.display = "block";
+    // document.getElementById("hh2").style.display = "block";
 
     return true;
   }
@@ -448,7 +448,7 @@ async function init() {
     document.getElementById("auth-form").style.display = "block";
     document.getElementById("btnCheckCode").style.display = "block";
     document.getElementById("important").style.display = "block";
-    document.getElementById("hh2").style.display = "block";
+    // document.getElementById("hh2").style.display = "block";
   }
 
   // Inizializza la visibilità dei pulsanti extra
