@@ -66,9 +66,10 @@ body {
   border: 1px solid var(--dark-border);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
- #test2 {
-      border-color: rgba(255, 140, 0, 0.454);
-    }
+
+#test2 {
+  border-color: rgba(255, 140, 0, 0.454);
+}
 
 .card:hover {
   transform: translateY(-2px);
@@ -78,12 +79,13 @@ body {
 .card-title {
   font-size: 1.2rem;
   font-weight: 600;
- 
+
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .card-title1 {
   font-size: 1.3rem;
   font-weight: 800;
@@ -191,7 +193,11 @@ input[type="password"]:focus {
 }
 
 .door-control {
-  background: linear-gradient(to right, rgba(71, 71, 71, 0.432), rgba(59, 59, 59, 0.199));
+  background: linear-gradient(
+    to right,
+    rgba(71, 71, 71, 0.432),
+    rgba(59, 59, 59, 0.199)
+  );
   padding: 24px;
   border-radius: 14px;
   margin: 20px 0;
@@ -387,7 +393,6 @@ input[type="password"]:focus {
 }
 
 .footer {
-
   bottom: 0;
   margin-top: 40px;
   padding: 24px 24px 0px 24px;
@@ -427,7 +432,7 @@ input[type="password"]:focus {
 }
 
 .admin-section {
- z-index: 9999;
+  z-index: 9999;
   margin-bottom: 28px;
   padding-bottom: 28px;
   border-bottom: 1px solid var(--dark-border);
