@@ -49,6 +49,9 @@ let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
 const SECRET_KEY = "musart_secret_123_fixed_key";
 const ADMIN_PASSWORD = "1122";
 
+// Variabili per l'orario di check-in
+let CHECKIN_TIME = localStorage.getItem("checkin_time") || "14:00";
+
 // Variabili di stato
 let timeCheckInterval;
 let currentDevice = null;
@@ -182,6 +185,86 @@ function showSessionExpired() {
 }
 
 // =============================================
+// GESTIONE ORARIO DI CHECK-IN
+// =============================================
+
+/**
+ * Verifica se l'orario corrente è dopo l'orario di check-in configurato
+ * @returns {boolean} True se è possibile fare check-in
+ */
+function isCheckinTime() {
+  const now = new Date();
+  const currentHours = now.getHours();
+  const currentMinutes = now.getMinutes();
+
+  const [checkinHours, checkinMinutes] = CHECKIN_TIME.split(":").map(Number);
+
+  // Confronta ore e minuti
+  if (currentHours > checkinHours) {
+    return true;
+  } else if (
+    currentHours === checkinHours &&
+    currentMinutes >= checkinMinutes
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Formatta l'orario per la visualizzazione
+ * @param {string} timeString - Stringa orario nel formato "HH:MM"
+ * @returns {string} Orario formattato
+ */
+function formatTime(timeString) {
+  const [hours, minutes] = timeString.split(":");
+  return `${hours}:${minutes}`;
+}
+
+/**
+ * Aggiorna la visualizzazione dell'orario di check-in
+ */
+function updateCheckinTimeDisplay() {
+  document.getElementById("checkinTimeDisplay").textContent =
+    formatTime(CHECKIN_TIME);
+  document.getElementById("checkinTimePopup").textContent =
+    formatTime(CHECKIN_TIME);
+  document.getElementById("currentCheckinTime").textContent =
+    formatTime(CHECKIN_TIME);
+
+  // Aggiorna lo stato corrente
+  const statusElement = document.getElementById("currentTimeStatus");
+  if (statusElement) {
+    if (isCheckinTime()) {
+      statusElement.innerHTML =
+        '<i class="fas fa-check-circle" style="color:green;"></i> Check-in is now available';
+    } else {
+      const now = new Date();
+      const [checkinHours, checkinMinutes] =
+        CHECKIN_TIME.split(":").map(Number);
+      const checkinTime = new Date(now);
+      checkinTime.setHours(checkinHours, checkinMinutes, 0, 0);
+
+      const timeDiff = checkinTime - now;
+      const hoursLeft = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutesLeft = Math.floor(
+        (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
+      );
+
+      statusElement.innerHTML = `<i class="fas fa-clock" style="color:orange;"></i> Check-in will be available in ${hoursLeft}h ${minutesLeft}m`;
+    }
+  }
+}
+
+/**
+ * Mostra il popup per check-in troppo presto
+ */
+function showEarlyCheckinPopup() {
+  document.getElementById("earlyCheckinPopup").style.display = "flex";
+}
+
+// =============================================
 // GESTIONE INTERFACCIA E STATO
 // =============================================
 
@@ -241,11 +324,13 @@ function updateButtonState(device) {
   if (!btn) return;
 
   const clicksLeft = getClicksLeft(device.storage_key);
-  btn.disabled = clicksLeft <= 0;
+  btn.disabled = clicksLeft <= 0 || !isCheckinTime();
 
   if (clicksLeft <= 0) {
     btn.classList.add("btn-error");
     btn.classList.remove("btn-success");
+  } else if (!isCheckinTime()) {
+    btn.classList.remove("btn-error", "btn-success");
   } else {
     btn.classList.add("btn-success");
     btn.classList.remove("btn-error");
@@ -257,6 +342,12 @@ function updateButtonState(device) {
 // =============================================
 
 function showConfirmationPopup(device) {
+  // Verifica l'orario di check-in prima di mostrare la conferma
+  if (!isCheckinTime()) {
+    showEarlyCheckinPopup();
+    return;
+  }
+
   currentDevice = device;
   const doorName = device.button_id
     .replace(/([A-Z])/g, " $1")
@@ -310,6 +401,12 @@ function closePopup(buttonId) {
 
 async function activateDevice(device) {
   if (await checkTimeLimit()) return;
+
+  // Verifica l'orario di check-in
+  if (!isCheckinTime()) {
+    showEarlyCheckinPopup();
+    return;
+  }
 
   let clicksLeft = getClicksLeft(device.storage_key);
   if (clicksLeft <= 0) {
@@ -370,6 +467,11 @@ function showAdminPanel() {
   // Carica lo stato delle porte extra
   document.getElementById("extraDoor1Visible").checked = DEVICES[2].visible;
   document.getElementById("extraDoor2Visible").checked = DEVICES[3].visible;
+
+  // Imposta l'orario di check-in
+  document.getElementById("checkinTime").value = CHECKIN_TIME;
+  document.getElementById("currentCheckinTime").textContent =
+    formatTime(CHECKIN_TIME);
 }
 
 function handleAdminLogin() {
@@ -473,6 +575,25 @@ function handleExtraDoorsVisibility() {
   alert("Impostazioni porte extra aggiornate!");
 }
 
+// FUNZIONE AGGIUNTA: Gestione orario di check-in
+function handleCheckinTimeUpdate() {
+  const newCheckinTime = document.getElementById("checkinTime").value;
+
+  if (!newCheckinTime) {
+    alert("Inserisci un orario valido");
+    return;
+  }
+
+  CHECKIN_TIME = newCheckinTime;
+  localStorage.setItem("checkin_time", newCheckinTime);
+
+  // Aggiorna la visualizzazione
+  updateCheckinTimeDisplay();
+  DEVICES.forEach(updateButtonState);
+
+  alert("Orario di check-in aggiornato con successo!");
+}
+
 async function updateGlobalCodeVersion() {
   const savedVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
   if (savedVersion < currentCodeVersion) {
@@ -514,6 +635,10 @@ async function handleCodeSubmit() {
   document.getElementById("auth-form").style.display = "none";
   document.getElementById("btnCheckCode").style.display = "none";
   document.getElementById("important").style.display = "none";
+
+  // Mostra informazioni sull'orario di check-in
+  document.getElementById("checkinTimeInfo").style.display = "block";
+  updateCheckinTimeDisplay();
 
   DEVICES.forEach(updateButtonState);
   updateStatusBar();
@@ -590,7 +715,7 @@ async function init() {
     });
   });
 
-  // AGGIUNTA: Event listener per il pulsante delle porte extra
+  // Event listener per il pulsante delle porte extra
   const btnExtraDoorsVisibility = document.getElementById(
     "btnExtraDoorsVisibility"
   );
@@ -599,6 +724,12 @@ async function init() {
       "click",
       handleExtraDoorsVisibility
     );
+  }
+
+  // Event listener per il pulsante dell'orario di check-in
+  const btnUpdateCheckinTime = document.getElementById("btnUpdateCheckinTime");
+  if (btnUpdateCheckinTime) {
+    btnUpdateCheckinTime.addEventListener("click", handleCheckinTimeUpdate);
   }
 
   const btnAdminLogin = document.getElementById("btnAdminLogin");
@@ -621,6 +752,10 @@ async function init() {
       document.getElementById("btnCheckCode").style.display = "none";
       document.getElementById("important").style.display = "none";
 
+      // Mostra informazioni sull'orario di check-in
+      document.getElementById("checkinTimeInfo").style.display = "block";
+      updateCheckinTimeDisplay();
+
       DEVICES.forEach(updateButtonState);
       updateStatusBar();
     }
@@ -630,8 +765,12 @@ async function init() {
     const expired = await checkTimeLimit();
     if (!expired) {
       await updateGlobalCodeVersion();
+      updateCheckinTimeDisplay();
     }
   }, 1000);
+
+  // Aggiorna l'orario ogni minuto
+  setInterval(updateCheckinTimeDisplay, 60000);
 
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -649,6 +788,9 @@ async function init() {
       }
     });
   }
+
+  // Inizializza la visualizzazione dell'orario
+  updateCheckinTimeDisplay();
 }
 
 // =============================================

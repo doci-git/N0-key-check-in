@@ -33,17 +33,15 @@
       >
         <i class="fab fa-whatsapp"></i> Need Assistance
       </a>
-        <!-- <button id="toggleAdmin" class="admin-toggle" style="bottom:0px; position: absolute; left: 0px;">⚙️</button> -->
+      <!-- <button id="toggleAdmin" class="admin-toggle" style="bottom:0px; position: absolute; left: 0px;">⚙️</button> -->
     </div>
 
     <div class="container">
-     
-
       <div class="card fade-in">
-         <div class="header">
-        <h1 class="logo">MusArt</h1>
-        <!-- <div class="subtitle">Check-in Information</div> -->
-      </div>
+        <div class="header">
+          <h1 class="logo">MusArt</h1>
+          <!-- <div class="subtitle">Check-in Information</div> -->
+        </div>
         <div class="card-title">
           <i class="fas fa-door-open"></i>
           Check-in Guide
@@ -57,6 +55,13 @@
         </div>
       </div>
 
+       <!-- Informazioni sull'orario di check-in -->
+          <div id="checkinTimeInfo" class="time-info" style="display: none;">
+            <p><i class="fas fa-info-circle"></i> <strong>Check-in Time:</strong> Doors can be unlocked from <span id="checkinTimeDisplay">14:00</span></p>
+            <p id="currentTimeStatus"></p>
+          </div>
+
+      
       <div class="card fade-in" id="test2">
         <div class="auth-container">
           <div class="card-title1">
@@ -193,10 +198,22 @@
             Are you sure you want to unlock this door?
           </p>
           <button id="confirmYes" class="btn">Yes, unlock</button>
-          <br><br>
+          <br /><br />
           <button id="confirmNo" class="btn btn-secondary">Cancel</button>
         </div>
       </div>
+
+          <!-- Popup per check-in troppo presto -->
+    <div id="earlyCheckinPopup" class="popup">
+      <div class="popup-content">
+        <h2><i class="fas fa-clock"></i> Check-in Time</h2>
+        <p>Check-in is available starting from <span id="checkinTimePopup">14:00</span>.</p>
+        <p>Please try again later.</p>
+        <button class="btn" onclick="closePopup('earlyCheckin')">
+          <i class="fas fa-times"></i> Close
+        </button>
+      </div>
+    </div>
 
       <div class="card important fade-in" id="important">
         <h3>
@@ -209,7 +226,7 @@
           WhatsApp.
         </p>
       </div>
-      <br>
+      <br />
       <div class="">
         <div class="contact-section">
           <h3>Need Assistance?</h3>
@@ -315,19 +332,35 @@
 
             <br /><br />
             <!-- buttoni extra-->
-             <h3>Gestione Porte Extra</h3>
-          <div>
-            <input type="checkbox" id="extraDoor1Visible" /> Mostra Extra Door
-            1
+            <h3>Gestione Porte Extra</h3>
+            <div>
+              <input type="checkbox" id="extraDoor1Visible" /> Mostra Extra Door
+              1
+            </div>
+            <div>
+              <input type="checkbox" id="extraDoor2Visible" /> Mostra Extra Door
+              2
+            </div>
+            <br />
+            <button id="btnExtraDoorsVisibility" class="btn">
+              Applica Visibilit
+            </button>
           </div>
-          <div>
-            <input type="checkbox" id="extraDoor2Visible" /> Mostra Extra Door
-            2
-          </div>
-          <br />
-          <button id="btnExtraDoorsVisibility" class="btn">
-            Applica Visibilit
-          </button>
+
+          <!-- Nuova sezione per orario di check-in -->
+          <div class="admin-section">
+            <h3>Check-in Time Settings</h3>
+            <p>
+              Current check-in time:
+              <strong><span id="currentCheckinTime">14:00</span></strong>
+            </p>
+            <div class="input-group">
+              <label for="checkinTime">Check-in time (from):</label>
+              <input type="time" id="checkinTime" value="14:00" />
+            </div>
+            <button id="btnUpdateCheckinTime" class="btn">
+              Update Check-in Time
+            </button>
           </div>
         </div>
       </div>
