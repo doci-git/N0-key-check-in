@@ -465,8 +465,8 @@ function showAdminPanel() {
   document.getElementById("newTimeLimit").value = TIME_LIMIT_MINUTES;
 
   // Carica lo stato delle porte extra
-  document.getElementById("extraDoor1Visible").checked = DEVICES[2].visible;
-  document.getElementById("extraDoor2Visible").checked = DEVICES[3].visible;
+  // document.getElementById("extraDoor1Visible").checked = DEVICES[2].visible;
+  // document.getElementById("extraDoor2Visible").checked = DEVICES[3].visible;
 
   // Imposta l'orario di check-in
   document.getElementById("checkinTime").value = CHECKIN_TIME;
