@@ -42,7 +42,7 @@ const DEVICES = [
 // Configurazioni con valori di default
 let MAX_CLICKS = parseInt(localStorage.getItem("max_clicks")) || 3;
 let TIME_LIMIT_MINUTES =
-  parseInt(localStorage.getItem("time_limit_minutes")) || 500;
+  parseInt(localStorage.getItem("time_limit_minutes")) || 5000;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
@@ -238,7 +238,7 @@ function updateCheckinTimeDisplay() {
   if (statusElement) {
     if (isCheckinTime()) {
       statusElement.innerHTML =
-        '<i class="fas fa-check-circle" style="color:green;"></i> Check-in is now available';
+        '<i class="fas fa-check-circle" style="color:green;"></i> Check-in is now available refresh the page';
     } else {
       const now = new Date();
       const [checkinHours, checkinMinutes] =
