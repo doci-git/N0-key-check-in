@@ -130,10 +130,14 @@
                <br>
 
               <!-- Informazioni sull'orario di check-in -->
-          <div id="checkinTimeInfo" class="time-info" style="display: none;">
-            <p><i class="fas fa-info-circle"></i> <strong>Check-in Time:</strong> Doors can be unlocked from <span id="checkinTimeDisplay">12:00</span></p>
-            <p id="currentTimeStatus"></p>
-          </div>
+         <div id="checkinTimeInfo" class="time-info" style="display: none">
+              <p>
+                <i class="fas fa-info-circle"></i>
+                <strong>Check-in Time Range:</strong> from <span id="checkinStartDisplay">14:00</span> until
+                <span id="checkinEndDisplay">22:00</span>
+              </p>
+              <p id="currentTimeStatus"></p>
+            </div>
           </div>
 
           <div id="sessionExpired" class="session-expired hidden">
@@ -352,18 +356,49 @@
 
           <!-- Nuova sezione per orario di check-in -->
           <div class="admin-section">
-            <h3>Check-in Time Settings</h3>
+            <h3><i class="fas fa-clock"></i> Check-in Time Settings</h3>
             <p>
-              Current check-in time:
-              <strong><span id="currentCheckinTime">14:00</span></strong>
+              Current check-in time range:
+              <strong
+                ><span id="currentCheckinStartTime">14:00</span> -
+                <span id="currentCheckinEndTime">22:00</span></strong
+              >
             </p>
-            <div class="input-group">
-              <label for="checkinTime">Check-in time (from):</label>
-              <input type="time" id="checkinTime" value="14:00" />
+
+            <div class="time-range-inputs">
+              <div class="input-group">
+                <label for="checkinStartTime">Check-in start time:</label>
+                <input type="time" id="checkinStartTime" value="14:00" />
+              </div>
+
+              <div class="input-group">
+                <label for="checkinEndTime">Check-in end time:</label>
+                <input type="time" id="checkinEndTime" value="22:00" />
+              </div>
             </div>
+
+            <div id="timeRangeError" class="admin-notification">
+              <p>
+                <i class="fas fa-exclamation-circle"></i> End time must be after
+                start time
+              </p>
+              
+            </div>
+
             <button id="btnUpdateCheckinTime" class="btn">
               Update Check-in Time
             </button>
+            <br><br>
+            <p>
+                <i class="fas fa-exclamation-circle"></i> deactivate range time giving access at any time
+              </p>
+            <button
+                id="btnToggleCheckinTime"
+                class="btn"
+                style="margin-top: 10px"
+              >
+                Toggle Check-in Time
+              </button>
           </div>
         </div>
       </div>

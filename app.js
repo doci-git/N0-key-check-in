@@ -1,10 +1,3 @@
-// =============================================
-// CONFIGURAZIONE E VARIABILI GLOBALI
-// =============================================
-
-/**
- * Elenco dei dispositivi Shelly configurati
- */
 const DEVICES = [
   {
     id: "e4b063f0c38c",
@@ -42,15 +35,23 @@ const DEVICES = [
 // Configurazioni con valori di default
 let MAX_CLICKS = parseInt(localStorage.getItem("max_clicks")) || 3;
 let TIME_LIMIT_MINUTES =
-  parseInt(localStorage.getItem("time_limit_minutes")) || 5000;
+  parseInt(localStorage.getItem("time_limit_minutes")) || 50000;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
 const SECRET_KEY = "musart_secret_123_fixed_key";
 const ADMIN_PASSWORD = "1122";
 
-// Variabili per l'orario di check-in
-let CHECKIN_TIME = localStorage.getItem("checkin_time") || "14:00";
+// Variabili per l'orario di check-in (range)
+let CHECKIN_START_TIME = localStorage.getItem("checkin_start_time") || "14:00";
+let CHECKIN_END_TIME = localStorage.getItem("checkin_end_time") || "22:00";
+// Default: se non è presente in localStorage, manteniamo il comportamento di prima (abilitato)
+let CHECKIN_TIME_ENABLED = localStorage.getItem("checkin_time_enabled");
+if (CHECKIN_TIME_ENABLED === null) {
+  CHECKIN_TIME_ENABLED = true;
+} else {
+  CHECKIN_TIME_ENABLED = CHECKIN_TIME_ENABLED === "true";
+}
 
 // Variabili di stato
 let timeCheckInterval;
@@ -185,31 +186,32 @@ function showSessionExpired() {
 }
 
 // =============================================
-// GESTIONE ORARIO DI CHECK-IN
+// GESTIONE ORARIO DI CHECK-IN (RANGE)
 // =============================================
 
 /**
- * Verifica se l'orario corrente è dopo l'orario di check-in configurato
+ * Verifica se l'orario corrente è nel range di check-in configurato
  * @returns {boolean} True se è possibile fare check-in
  */
 function isCheckinTime() {
+  // Se il controllo orario è disattivato, consentiamo sempre il check-in
+  if (!CHECKIN_TIME_ENABLED) return true;
+
   const now = new Date();
   const currentHours = now.getHours();
   const currentMinutes = now.getMinutes();
+  const currentTimeInMinutes = currentHours * 60 + currentMinutes;
 
-  const [checkinHours, checkinMinutes] = CHECKIN_TIME.split(":").map(Number);
+  const [startHours, startMinutes] = CHECKIN_START_TIME.split(":").map(Number);
+  const [endHours, endMinutes] = CHECKIN_END_TIME.split(":").map(Number);
 
-  // Confronta ore e minuti
-  if (currentHours > checkinHours) {
-    return true;
-  } else if (
-    currentHours === checkinHours &&
-    currentMinutes >= checkinMinutes
-  ) {
-    return true;
-  }
+  const startTimeInMinutes = startHours * 60 + startMinutes;
+  const endTimeInMinutes = endHours * 60 + endMinutes;
 
-  return false;
+  return (
+    currentTimeInMinutes >= startTimeInMinutes &&
+    currentTimeInMinutes <= endTimeInMinutes
+  );
 }
 
 /**
@@ -223,36 +225,66 @@ function formatTime(timeString) {
 }
 
 /**
- * Aggiorna la visualizzazione dell'orario di check-in
+ * Aggiorna la visualizzazione del range orario di check-in
  */
 function updateCheckinTimeDisplay() {
-  document.getElementById("checkinTimeDisplay").textContent =
-    formatTime(CHECKIN_TIME);
-  document.getElementById("checkinTimePopup").textContent =
-    formatTime(CHECKIN_TIME);
-  document.getElementById("currentCheckinTime").textContent =
-    formatTime(CHECKIN_TIME);
+  const startEl = document.getElementById("checkinStartDisplay");
+  const endEl = document.getElementById("checkinEndDisplay");
+  const startPopup = document.getElementById("checkinStartPopup");
+  const endPopup = document.getElementById("checkinEndPopup");
+  const currentStart = document.getElementById("currentCheckinStartTime");
+  const currentEnd = document.getElementById("currentCheckinEndTime");
+
+  if (startEl) startEl.textContent = formatTime(CHECKIN_START_TIME);
+  if (endEl) endEl.textContent = formatTime(CHECKIN_END_TIME);
+  if (startPopup) startPopup.textContent = formatTime(CHECKIN_START_TIME);
+  if (endPopup) endPopup.textContent = formatTime(CHECKIN_END_TIME);
+  if (currentStart) currentStart.textContent = formatTime(CHECKIN_START_TIME);
+  if (currentEnd) currentEnd.textContent = formatTime(CHECKIN_END_TIME);
 
   // Aggiorna lo stato corrente
   const statusElement = document.getElementById("currentTimeStatus");
   if (statusElement) {
-    if (isCheckinTime()) {
+    if (!CHECKIN_TIME_ENABLED) {
       statusElement.innerHTML =
-        '<i class="fas fa-check-circle" style="color:green;"></i> Check-in is now available refresh the page';
+        '<i class="fas fa-power-off" style="color:orange;"></i> Time control disabled — check-in allowed at any time';
+    } else if (isCheckinTime()) {
+      statusElement.innerHTML =
+        '<i class="fas fa-check-circle" style="color:green;"></i> Check-in now available';
     } else {
       const now = new Date();
-      const [checkinHours, checkinMinutes] =
-        CHECKIN_TIME.split(":").map(Number);
-      const checkinTime = new Date(now);
-      checkinTime.setHours(checkinHours, checkinMinutes, 0, 0);
+      const currentHours = now.getHours();
+      const currentMinutes = now.getMinutes();
+      const currentTimeInMinutes = currentHours * 60 + currentMinutes;
 
-      const timeDiff = checkinTime - now;
-      const hoursLeft = Math.floor(timeDiff / (1000 * 60 * 60));
-      const minutesLeft = Math.floor(
-        (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
-      );
+      const [startHours, startMinutes] =
+        CHECKIN_START_TIME.split(":").map(Number);
+      const [endHours, endMinutes] = CHECKIN_END_TIME.split(":").map(Number);
 
-      statusElement.innerHTML = `<i class="fas fa-clock" style="color:orange;"></i> Check-in will be available in ${hoursLeft}h ${minutesLeft}m`;
+      const startTimeInMinutes = startHours * 60 + startMinutes;
+      const endTimeInMinutes = endHours * 60 + endMinutes;
+
+      if (currentTimeInMinutes < startTimeInMinutes) {
+        // Prima dell'orario di inizio
+        const timeDiff = startTimeInMinutes - currentTimeInMinutes;
+        const hoursLeft = Math.floor(timeDiff / 60);
+        const minutesLeft = timeDiff % 60;
+
+        statusElement.innerHTML = `<i class="fas fa-clock" style="color:orange;"></i> Check-in will be available in ${hoursLeft}h ${minutesLeft}m`;
+      } else {
+        // Dopo l'orario di fine
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(startHours, startMinutes, 0, 0);
+
+        const timeDiff = tomorrow - now;
+        const hoursLeft = Math.floor(timeDiff / (1000 * 60 * 60));
+        const minutesLeft = Math.floor(
+          (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
+        );
+
+        statusElement.innerHTML = `<i class="fas fa-clock" style="color:orange;"></i> Check-in will be available tomorrow in ${hoursLeft}h ${minutesLeft}m`;
+      }
     }
   }
 }
@@ -262,6 +294,13 @@ function updateCheckinTimeDisplay() {
  */
 function showEarlyCheckinPopup() {
   document.getElementById("earlyCheckinPopup").style.display = "flex";
+}
+
+/**
+ * Chiude il popup per check-in troppo presto
+ */
+function closeEarlyCheckinPopup() {
+  document.getElementById("earlyCheckinPopup").style.display = "none";
 }
 
 // =============================================
@@ -375,14 +414,14 @@ function showDevicePopup(device, clicksLeft) {
   if (text) {
     if (clicksLeft > 0) {
       text.innerHTML = `
-            <i class="fas fa-check-circle" style="color:#4CAF50;font-size:2.5rem;margin-bottom:15px;"></i>
-            <div><strong>${clicksLeft}</strong> Click Left</div>
-            <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
+                    <i class="fas fa-check-circle" style="color:#4CAF50;font-size:2.5rem;margin-bottom:15px;"></i>
+                    <div><strong>${clicksLeft}</strong> Click Left</div>
+                    <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
     } else {
       text.innerHTML = `
-            <i class="fas fa-exclamation-triangle" style="color:#FFC107;font-size:2.5rem;margin-bottom:15px;"></i>
-            <div><strong>No more clicks left!</strong></div>
-            <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
+                    <i class="fas fa-exclamation-triangle" style="color:#FFC107;font-size:2.5rem;margin-bottom:15px;"></i>
+                    <div><strong>No more clicks left!</strong></div>
+                    <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
     }
   }
 
@@ -464,14 +503,27 @@ function showAdminPanel() {
   document.getElementById("newMaxClicks").value = MAX_CLICKS;
   document.getElementById("newTimeLimit").value = TIME_LIMIT_MINUTES;
 
-  // Carica lo stato delle porte extra
-  // document.getElementById("extraDoor1Visible").checked = DEVICES[2].visible;
-  // document.getElementById("extraDoor2Visible").checked = DEVICES[3].visible;
-
   // Imposta l'orario di check-in
-  document.getElementById("checkinTime").value = CHECKIN_TIME;
-  document.getElementById("currentCheckinTime").textContent =
-    formatTime(CHECKIN_TIME);
+  document.getElementById("checkinStartTime").value = CHECKIN_START_TIME;
+  document.getElementById("checkinEndTime").value = CHECKIN_END_TIME;
+  document.getElementById("currentCheckinStartTime").textContent =
+    formatTime(CHECKIN_START_TIME);
+  document.getElementById("currentCheckinEndTime").textContent =
+    formatTime(CHECKIN_END_TIME);
+
+  // Aggiorna stato del toggle (se presente)
+  const btnToggle = document.getElementById("btnToggleCheckinTime");
+  if (btnToggle) {
+    if (CHECKIN_TIME_ENABLED) {
+      btnToggle.textContent = "✅ Check-in Time ON";
+      btnToggle.classList.remove("btn-error");
+      btnToggle.classList.add("btn-success");
+    } else {
+      btnToggle.textContent = "❌ Check-in Time OFF";
+      btnToggle.classList.remove("btn-success");
+      btnToggle.classList.add("btn-error");
+    }
+  }
 }
 
 function handleAdminLogin() {
@@ -551,41 +603,36 @@ function handleSettingsUpdate() {
   updateStatusBar();
 }
 
-// FUNZIONE AGGIUNTA: Gestione visibilità porte extra
-function handleExtraDoorsVisibility() {
-  const extraDoor1Visible =
-    document.getElementById("extraDoor1Visible").checked;
-  const extraDoor2Visible =
-    document.getElementById("extraDoor2Visible").checked;
-
-  // Aggiorna lo stato nei dispositivi
-  DEVICES[2].visible = extraDoor1Visible;
-  DEVICES[3].visible = extraDoor2Visible;
-
-  // Salva le preferenze
-  localStorage.setItem("extraDoor1Visible", extraDoor1Visible);
-  localStorage.setItem("extraDoor2Visible", extraDoor2Visible);
-
-  // Aggiorna l'interfaccia
-  document.getElementById("ExtraDoor1Container").style.display =
-    extraDoor1Visible ? "block" : "none";
-  document.getElementById("ExtraDoor2Container").style.display =
-    extraDoor2Visible ? "block" : "none";
-
-  alert("Impostazioni porte extra aggiornate!");
-}
-
-// FUNZIONE AGGIUNTA: Gestione orario di check-in
+// FUNZIONE AGGIUNTA: Gestione orario di check-in (range)
 function handleCheckinTimeUpdate() {
-  const newCheckinTime = document.getElementById("checkinTime").value;
+  const newCheckinStartTime = document.getElementById("checkinStartTime").value;
+  const newCheckinEndTime = document.getElementById("checkinEndTime").value;
 
-  if (!newCheckinTime) {
-    alert("Inserisci un orario valido");
+  if (!newCheckinStartTime || !newCheckinEndTime) {
+    alert("Inserisci orari validi");
     return;
   }
 
-  CHECKIN_TIME = newCheckinTime;
-  localStorage.setItem("checkin_time", newCheckinTime);
+  // Converti in minuti per il confronto
+  const [startHours, startMinutes] = newCheckinStartTime.split(":").map(Number);
+  const [endHours, endMinutes] = newCheckinEndTime.split(":").map(Number);
+
+  const startTimeInMinutes = startHours * 60 + startMinutes;
+  const endTimeInMinutes = endHours * 60 + endMinutes;
+
+  // Verifica che l'orario di fine sia dopo l'orario di inizio
+  if (endTimeInMinutes <= startTimeInMinutes) {
+    document.getElementById("timeRangeError").style.display = "block";
+    return;
+  }
+
+  document.getElementById("timeRangeError").style.display = "none";
+
+  CHECKIN_START_TIME = newCheckinStartTime;
+  CHECKIN_END_TIME = newCheckinEndTime;
+
+  localStorage.setItem("checkin_start_time", newCheckinStartTime);
+  localStorage.setItem("checkin_end_time", newCheckinEndTime);
 
   // Aggiorna la visualizzazione
   updateCheckinTimeDisplay();
@@ -667,20 +714,6 @@ async function init() {
     document.getElementById("important").style.display = "block";
   }
 
-  // Carica le impostazioni delle porte extra
-  const savedExtraDoor1Visible =
-    localStorage.getItem("extraDoor1Visible") === "true";
-  const savedExtraDoor2Visible =
-    localStorage.getItem("extraDoor2Visible") === "true";
-
-  DEVICES[2].visible = savedExtraDoor1Visible;
-  DEVICES[3].visible = savedExtraDoor2Visible;
-
-  document.getElementById("ExtraDoor1Container").style.display =
-    savedExtraDoor1Visible ? "block" : "none";
-  document.getElementById("ExtraDoor2Container").style.display =
-    savedExtraDoor2Visible ? "block" : "none";
-
   // Configura gli event listener
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
@@ -715,23 +748,6 @@ async function init() {
     });
   });
 
-  // Event listener per il pulsante delle porte extra
-  const btnExtraDoorsVisibility = document.getElementById(
-    "btnExtraDoorsVisibility"
-  );
-  if (btnExtraDoorsVisibility) {
-    btnExtraDoorsVisibility.addEventListener(
-      "click",
-      handleExtraDoorsVisibility
-    );
-  }
-
-  // Event listener per il pulsante dell'orario di check-in
-  const btnUpdateCheckinTime = document.getElementById("btnUpdateCheckinTime");
-  if (btnUpdateCheckinTime) {
-    btnUpdateCheckinTime.addEventListener("click", handleCheckinTimeUpdate);
-  }
-
   const btnAdminLogin = document.getElementById("btnAdminLogin");
   if (btnAdminLogin) btnAdminLogin.addEventListener("click", handleAdminLogin);
 
@@ -741,6 +757,46 @@ async function init() {
   const btnSettingsUpdate = document.getElementById("btnSettingsUpdate");
   if (btnSettingsUpdate)
     btnSettingsUpdate.addEventListener("click", handleSettingsUpdate);
+
+  // Event listener per il pulsante dell'orario di check-in
+  const btnUpdateCheckinTime = document.getElementById("btnUpdateCheckinTime");
+  if (btnUpdateCheckinTime) {
+    btnUpdateCheckinTime.addEventListener("click", handleCheckinTimeUpdate);
+  }
+
+  // --- Nuovo: toggle per abilitare/disabilitare il controllo orario ---
+  const btnToggleCheckinTime = document.getElementById("btnToggleCheckinTime");
+  if (btnToggleCheckinTime) {
+    btnToggleCheckinTime.addEventListener("click", () => {
+      CHECKIN_TIME_ENABLED = !CHECKIN_TIME_ENABLED;
+      localStorage.setItem(
+        "checkin_time_enabled",
+        CHECKIN_TIME_ENABLED.toString()
+      );
+
+      if (CHECKIN_TIME_ENABLED) {
+        btnToggleCheckinTime.textContent = "✅ Check-in Time ON";
+        btnToggleCheckinTime.classList.remove("btn-error");
+        btnToggleCheckinTime.classList.add("btn-success");
+      } else {
+        btnToggleCheckinTime.textContent = "❌ Check-in Time OFF";
+        btnToggleCheckinTime.classList.remove("btn-success");
+        btnToggleCheckinTime.classList.add("btn-error");
+      }
+
+      updateCheckinTimeDisplay();
+      DEVICES.forEach(updateButtonState);
+    });
+
+    // Imposta stato iniziale del pulsante
+    if (CHECKIN_TIME_ENABLED) {
+      btnToggleCheckinTime.textContent = "✅ Check-in Time ON";
+      btnToggleCheckinTime.classList.add("btn-success");
+    } else {
+      btnToggleCheckinTime.textContent = "❌ Check-in Time OFF";
+      btnToggleCheckinTime.classList.add("btn-error");
+    }
+  }
 
   const expired = await checkTimeLimit();
   if (!expired) {
