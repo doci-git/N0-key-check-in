@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MusArt - Check-in System</title>
+    <title>Zentry - Check-in System</title>
     <link rel="stylesheet" href="style.css" />
     <link
       rel="stylesheet"
@@ -55,8 +55,6 @@
         </div>
       </div>
 
-     
-      
       <div class="card fade-in" id="test2">
         <div class="auth-container">
           <div class="card-title1">
@@ -127,13 +125,14 @@
               </p>
             </div>
 
-               <br>
+            <br />
 
-              <!-- Informazioni sull'orario di check-in -->
-         <div id="checkinTimeInfo" class="time-info" style="display: none">
+            <!-- Informazioni sull'orario di check-in -->
+            <div id="checkinTimeInfo" class="time-info" style="display: none">
               <p>
                 <i class="fas fa-info-circle"></i>
-                <strong>Check-in Time Range:</strong> from <span id="checkinStartDisplay">14:00</span> until
+                <strong>Check-in Time Range:</strong> from
+                <span id="checkinStartDisplay">14:00</span> until
                 <span id="checkinEndDisplay">22:00</span>
               </p>
               <p id="currentTimeStatus"></p>
@@ -210,17 +209,20 @@
         </div>
       </div>
 
-          <!-- Popup per check-in troppo presto -->
-    <div id="earlyCheckinPopup" class="popup">
-      <div class="popup-content">
-        <h2><i class="fas fa-clock"></i> Check-in Time</h2>
-        <p>Check-in is available starting from <span id="checkinTimePopup">14:00</span>.</p>
-        <p>Please try again later.</p>
-        <button class="btn" onclick="closePopup('earlyCheckin')">
-          <i class="fas fa-times"></i> Close
-        </button>
+      <!-- Popup per check-in troppo presto -->
+      <div id="earlyCheckinPopup" class="popup">
+        <div class="popup-content">
+          <h2><i class="fas fa-clock"></i> Check-in Time</h2>
+          <p>
+            Check-in is available starting from
+            <span id="checkinTimePopup">14:00</span>.
+          </p>
+          <p>Please try again later.</p>
+          <button class="btn" onclick="closePopup('earlyCheckin')">
+            <i class="fas fa-times"></i> Close
+          </button>
+        </div>
       </div>
-    </div>
 
       <div class="card important fade-in" id="important">
         <h3>
@@ -273,7 +275,7 @@
       </div>
 
       <footer class="footer">
-        <p>© 2025 MusArt - All rights reserved</p>
+        <p>© 2025 Zentry - All rights reserved</p>
         <button id="toggleAdmin" class="admin-toggle">⚙️</button>
       </footer>
 
@@ -336,10 +338,12 @@
             </div>
 
             <button id="btnSettingsUpdate" class="btn">Update Settings</button>
+          </div>
 
-            <br /><br />
-            <!-- buttoni extra-->
-            <!-- <h3>Gestione Porte Extra</h3>
+          <!-- 
+            buttoni extra-->
+          <!-- <div class="admin-section">
+            <h3>Gestione Porte Extra</h3>
             <div>
               <input type="checkbox" id="extraDoor1Visible" /> Mostra Extra Door
               1
@@ -355,6 +359,7 @@
           </div> -->
 
           <!-- Nuova sezione per orario di check-in -->
+
           <div class="admin-section">
             <h3><i class="fas fa-clock"></i> Check-in Time Settings</h3>
             <p>
@@ -375,30 +380,32 @@
                 <label for="checkinEndTime">Check-in end time:</label>
                 <input type="time" id="checkinEndTime" value="22:00" />
               </div>
-            </div>
 
-            <div id="timeRangeError" class="admin-notification">
-              <p>
-                <i class="fas fa-exclamation-circle"></i> End time must be after
-                start time
-              </p>
-              
-            </div>
+              <div id="timeRangeError" class="admin-notification">
+                <p>
+                  <i class="fas fa-exclamation-circle"></i> End time must be
+                  after start time
+                </p>
+              </div>
 
-            <button id="btnUpdateCheckinTime" class="btn">
-              Update Check-in Time
-            </button>
-            <br><br>
-            <p>
-                <i class="fas fa-exclamation-circle"></i> deactivate range time giving access at any time
-              </p>
-            <button
-                id="btnToggleCheckinTime"
-                class="btn"
-                style="margin-top: 10px"
-              >
-                Toggle Check-in Time
+              <button id="btnUpdateCheckinTime" class="btn">
+                Update Check-in Time
               </button>
+            </div>
+          </div>
+
+          <div class="admin-section">
+            <p>
+              <i class="fas fa-exclamation-circle"></i> deactivate range time
+              giving access at any time
+            </p>
+            <button
+              id="btnToggleCheckinTime"
+              class="btn"
+              style="margin-top: 10px"
+            >
+              Toggle Check-in Time
+            </button>
           </div>
         </div>
       </div>
