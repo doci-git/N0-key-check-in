@@ -376,6 +376,15 @@ function updateButtonState(device) {
   }
 }
 
+function updateDoorVisibility() {
+  DEVICES.forEach((device) => {
+    const container = document.getElementById(`${device.button_id}Container`);
+    if (container) {
+      container.style.display = device.visible ? "block" : "none";
+    }
+  });
+}
+
 // =============================================
 // GESTIONE POPUP E INTERAZIONI
 // =============================================
@@ -847,6 +856,7 @@ async function init() {
 
   // Inizializza la visualizzazione dell'orario
   updateCheckinTimeDisplay();
+  updateDoorVisibility();
 }
 
 // =============================================
