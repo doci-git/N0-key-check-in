@@ -38,7 +38,7 @@ let TIME_LIMIT_MINUTES =
   parseInt(localStorage.getItem("time_limit_minutes")) || 50000;
 const BASE_URL_SET =
   "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
-let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
+let CORRECT_CODE = localStorage.getItem("secret_code") || "1234";
 const SECRET_KEY = "musart_secret_123_fixed_key";
 const ADMIN_PASSWORD = "1122";
 
