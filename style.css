@@ -47,8 +47,8 @@ body {
   margin-top: -25px;
   font-size: 2rem;
   font-weight: 800;
-  color: rgba(255, 140, 0, 0.781);
-  letter-spacing: 2px;
+  color:#ffaa00d2;
+  letter-spacing: 1.5px;
 }
 
 .subtitle {
@@ -56,6 +56,14 @@ body {
   font-size: 1.1rem;
   font-weight: 400;
 }
+.spa {
+  margin-top: -25px;
+  font-size: 2rem;
+  font-weight: 800;
+  color:#ffefd5d2;
+  letter-spacing: 1.5px;
+}
+
 
 .card {
   background-color: var(--dark-card);
@@ -639,3 +647,58 @@ input[type="password"]:focus {
     padding: 20px;
   }
 }
+
+/* Aggiungi questi stili al tuo file CSS */
+.admin-section .input-group a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.admin-section .input-group a:hover {
+    text-decoration: underline;
+}
+
+#recentLinksList {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+#recentLinksList div {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid var(--primary);
+}
+
+#recentLinksList button {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+#recentLinksList button:hover {
+    text-decoration: underline;
+}
+/* .firebase-offline {
+  opacity: 0.9;
+}
+
+.firebase-offline::before {
+  content: "⚠️ Connessione persa";
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #ff9900;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  z-index: 10000;
+  font-size: 12px;
+} */

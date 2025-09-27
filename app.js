@@ -1,3 +1,30 @@
+// app.js - Sistema di Check-in Porte
+// Riorganizzato per migliore manutenibilità e leggibilità
+
+// =============================================
+// CONFIGURAZIONE E INIZIALIZZAZIONE
+// =============================================
+
+// Configurazione Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyCuy3Sak96soCla7b5Yb5wmkdVfMqAXmok",
+  authDomain: "check-in-4e0e9.firebaseapp.com",
+  databaseURL:
+    "https://check-in-4e0e9-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "check-in-4e0e9",
+  storageBucket: "check-in-4e0e9.firebasestorage.app",
+  messagingSenderId: "723880990177",
+  appId: "1:723880990177:web:f002733b2cc2e50d172ea0",
+  measurementId: "G-H97GB9L4F5",
+};
+
+// Costanti applicative
+const BASE_URL_SET =
+  "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
+const SECRET_KEY = "musart_secret_123_fixed_key";
+const CODE_VERSION_KEY = "code_version";
+
+// Configurazione dispositivi Shelly
 const DEVICES = [
   {
     id: "e4b063f0c38c",
@@ -32,34 +59,33 @@ const DEVICES = [
   },
 ];
 
-// Configurazioni con valori di default
+// Variabili globali
 let MAX_CLICKS = parseInt(localStorage.getItem("max_clicks")) || 3;
 let TIME_LIMIT_MINUTES =
   parseInt(localStorage.getItem("time_limit_minutes")) || 50000;
-const BASE_URL_SET =
-  "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
-let CORRECT_CODE = localStorage.getItem("secret_code") || "1234";
-const SECRET_KEY = "musart_secret_123_fixed_key";
-const ADMIN_PASSWORD = "1122";
+let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
+let currentCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
 
-// Variabili per l'orario di check-in (range)
+// Variabili per l'orario di check-in
 let CHECKIN_START_TIME = localStorage.getItem("checkin_start_time") || "14:00";
 let CHECKIN_END_TIME = localStorage.getItem("checkin_end_time") || "22:00";
-// Default: se non è presente in localStorage, manteniamo il comportamento di prima (abilitato)
-let CHECKIN_TIME_ENABLED = localStorage.getItem("checkin_time_enabled");
-if (CHECKIN_TIME_ENABLED === null) {
-  CHECKIN_TIME_ENABLED = true;
-} else {
-  CHECKIN_TIME_ENABLED = CHECKIN_TIME_ENABLED === "true";
-}
+let CHECKIN_TIME_ENABLED =
+  localStorage.getItem("checkin_time_enabled") !== "false";
 
 // Variabili di stato
-let timeCheckInterval;
+let isTokenSession = false;
+let currentTokenId = null;
+let currentTokenCustomCode = null;
+let sessionStartTime = null;
 let currentDevice = null;
+let timeCheckInterval;
+let codeCheckInterval;
+let CODE_CHECK_INTERVAL;
+let LINK_CHECK_INTERVAL;
 
-// Gestione versione codice per forzare il reset alla modifica
-const CODE_VERSION_KEY = "code_version";
-let currentCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
+// Inizializza Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
 
 // =============================================
 // FUNZIONI DI STORAGE (localStorage e cookie)
@@ -115,6 +141,76 @@ async function generateHash(str) {
 }
 
 // =============================================
+// GESTIONE IMPOSTAZIONI FIREBASE
+// =============================================
+
+async function loadSettingsFromFirebase() {
+  try {
+    const snapshot = await database.ref("settings").once("value");
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.error(
+      "Errore nel caricamento delle impostazioni da Firebase:",
+      error
+    );
+    return null;
+  }
+}
+
+function setupSettingsListener() {
+  database.ref("settings").on("value", (snapshot) => {
+    if (snapshot.exists()) {
+      const settings = snapshot.val();
+      updateSettingsFromFirebase(settings);
+    }
+  });
+}
+
+function updateSettingsFromFirebase(settings) {
+  if (settings.secret_code) {
+    CORRECT_CODE = settings.secret_code;
+    localStorage.setItem("secret_code", settings.secret_code);
+  }
+
+  if (settings.max_clicks) {
+    MAX_CLICKS = parseInt(settings.max_clicks);
+    localStorage.setItem("max_clicks", settings.max_clicks);
+  }
+
+  if (settings.time_limit_minutes) {
+    TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes);
+    localStorage.setItem("time_limit_minutes", settings.time_limit_minutes);
+  }
+
+  if (settings.code_version) {
+    const savedVersion = parseInt(settings.code_version);
+    if (savedVersion > currentCodeVersion) {
+      checkCodeVersion();
+    }
+  }
+
+  updateStatusBar();
+  DEVICES.forEach(updateButtonState);
+}
+
+function monitorFirebaseConnection() {
+  const connectedRef = database.ref(".info/connected");
+  connectedRef.on("value", (snap) => {
+    if (snap.val() === true) {
+      console.log("Connesso a Firebase");
+      document.body.classList.remove("firebase-offline");
+    } else {
+      console.log("Non connesso a Firebase");
+      document.body.classList.add("firebase-offline");
+      showNotification(
+        "Connessione a Firebase persa. Le modifiche potrebbero non essere sincronizzate.",
+        "warning"
+      );
+    }
+  });
+}
+
+// =============================================
 // GESTIONE TEMPO E SESSIONE
 // =============================================
 
@@ -127,6 +223,9 @@ async function setUsageStartTime() {
 }
 
 async function checkTimeLimit() {
+  if (window.isTokenSession) return false;
+  if (!sessionStartTime) return false;
+
   const startTime = getStorage("usage_start_time");
   const storedHash = getStorage("usage_hash");
 
@@ -152,18 +251,22 @@ async function checkTimeLimit() {
 
 function showFatalError(message) {
   clearInterval(timeCheckInterval);
+  clearInterval(codeCheckInterval);
   document.body.innerHTML = `
-        <div style="
-          position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-          display: flex; justify-content: center; align-items: center;
-          background: #121111; color: #ff6b6b; font-size: 24px; text-align: center;
-          padding: 20px; z-index: 9999;">
-          ${message}
-        </div>`;
+    <div style="
+      position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+      display: flex; justify-content: center; align-items: center;
+      background: #121111; color: #ff6b6b; font-size: 24px; text-align: center;
+      padding: 20px; z-index: 9999;">
+      ${message}
+    </div>`;
 }
 
 function showSessionExpired() {
+  if (window.isTokenSession) return;
+
   clearInterval(timeCheckInterval);
+  clearInterval(codeCheckInterval);
 
   document.getElementById("expiredOverlay").classList.remove("hidden");
   document.getElementById("controlPanel").classList.add("hidden");
@@ -183,18 +286,48 @@ function showSessionExpired() {
     securityStatus.textContent = "Scaduta";
     securityStatus.style.color = "var(--error)";
   }
+
+  sessionStartTime = null;
+}
+
+function isSessionStuck() {
+  try {
+    const authVerified = localStorage.getItem("auth_verified");
+    const authTimestamp = localStorage.getItem("auth_timestamp");
+    const usageStartTime = localStorage.getItem("usage_start_time");
+
+    if (authVerified === "true" && authTimestamp) {
+      const authTime = parseInt(authTimestamp, 10);
+      const now = Date.now();
+      const timeElapsed = now - authTime;
+
+      if (timeElapsed > 24 * 60 * 60 * 1000) {
+        return true;
+      }
+    }
+
+    if (usageStartTime) {
+      const startTime = parseInt(usageStartTime, 10);
+      const now = Date.now();
+      const minutesPassed = (now - startTime) / (1000 * 60);
+
+      if (minutesPassed > TIME_LIMIT_MINUTES + 60) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Errore nel controllo sessione bloccata:", error);
+    return false;
+  }
 }
 
 // =============================================
-// GESTIONE ORARIO DI CHECK-IN (RANGE)
+// GESTIONE ORARIO DI CHECK-IN
 // =============================================
 
-/**
- * Verifica se l'orario corrente è nel range di check-in configurato
- * @returns {boolean} True se è possibile fare check-in
- */
 function isCheckinTime() {
-  // Se il controllo orario è disattivato, consentiamo sempre il check-in
   if (!CHECKIN_TIME_ENABLED) return true;
 
   const now = new Date();
@@ -214,19 +347,11 @@ function isCheckinTime() {
   );
 }
 
-/**
- * Formatta l'orario per la visualizzazione
- * @param {string} timeString - Stringa orario nel formato "HH:MM"
- * @returns {string} Orario formattato
- */
 function formatTime(timeString) {
   const [hours, minutes] = timeString.split(":");
   return `${hours}:${minutes}`;
 }
 
-/**
- * Aggiorna la visualizzazione del range orario di check-in
- */
 function updateCheckinTimeDisplay() {
   const startEl = document.getElementById("checkinStartDisplay");
   const endEl = document.getElementById("checkinEndDisplay");
@@ -242,7 +367,6 @@ function updateCheckinTimeDisplay() {
   if (currentStart) currentStart.textContent = formatTime(CHECKIN_START_TIME);
   if (currentEnd) currentEnd.textContent = formatTime(CHECKIN_END_TIME);
 
-  // Aggiorna lo stato corrente
   const statusElement = document.getElementById("currentTimeStatus");
   if (statusElement) {
     if (!CHECKIN_TIME_ENABLED) {
@@ -265,14 +389,11 @@ function updateCheckinTimeDisplay() {
       const endTimeInMinutes = endHours * 60 + endMinutes;
 
       if (currentTimeInMinutes < startTimeInMinutes) {
-        // Prima dell'orario di inizio
         const timeDiff = startTimeInMinutes - currentTimeInMinutes;
         const hoursLeft = Math.floor(timeDiff / 60);
         const minutesLeft = timeDiff % 60;
-
         statusElement.innerHTML = `<i class="fas fa-clock" style="color:orange;"></i> Check-in will be available in ${hoursLeft}h ${minutesLeft}m`;
       } else {
-        // Dopo l'orario di fine
         const tomorrow = new Date(now);
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(startHours, startMinutes, 0, 0);
@@ -282,23 +403,16 @@ function updateCheckinTimeDisplay() {
         const minutesLeft = Math.floor(
           (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
         );
-
         statusElement.innerHTML = `<i class="fas fa-clock" style="color:orange;"></i> Check-in will be available tomorrow in ${hoursLeft}h ${minutesLeft}m`;
       }
     }
   }
 }
 
-/**
- * Mostra il popup per check-in troppo presto
- */
 function showEarlyCheckinPopup() {
   document.getElementById("earlyCheckinPopup").style.display = "flex";
 }
 
-/**
- * Chiude il popup per check-in troppo presto
- */
 function closeEarlyCheckinPopup() {
   document.getElementById("earlyCheckinPopup").style.display = "none";
 }
@@ -324,8 +438,20 @@ function updateStatusBar() {
     )} click left`;
   }
 
+  if (!sessionStartTime || !timeRemaining) {
+    if (timeRemaining) {
+      const minutes = Math.floor(TIME_LIMIT_MINUTES);
+      const seconds = Math.floor((TIME_LIMIT_MINUTES % 1) * 60);
+      timeRemaining.textContent = `${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+      timeRemaining.style.color = "var(--primary)";
+    }
+    return;
+  }
+
   const startTime = getStorage("usage_start_time");
-  if (!startTime || !timeRemaining) return;
+  if (!startTime) return;
 
   const now = Date.now();
   const minutesPassed = (now - parseInt(startTime, 10)) / (1000 * 60);
@@ -386,11 +512,145 @@ function updateDoorVisibility() {
 }
 
 // =============================================
+// GESTIONE CAMBIAMENTO CODICE
+// =============================================
+
+function setupCodeChangeListener() {
+  CODE_CHECK_INTERVAL = setInterval(() => {
+    checkCodeVersion();
+  }, 2000);
+
+  LINK_CHECK_INTERVAL = setInterval(() => {
+    checkExpiredLinks();
+  }, 60000);
+
+  window.addEventListener("storage", function (e) {
+    if (e.key === "code_version" || e.key === "last_code_update") {
+      checkCodeVersion();
+    }
+  });
+}
+
+function checkCodeVersion() {
+  if (isTokenSession && currentTokenCustomCode) return;
+
+  database
+    .ref("settings/code_version")
+    .once("value")
+    .then((snapshot) => {
+      if (snapshot.exists()) {
+        const firebaseVersion = parseInt(snapshot.val());
+        const localVersion =
+          parseInt(localStorage.getItem("code_version")) || 1;
+        const savedVersion = Math.max(firebaseVersion, localVersion);
+
+        if (savedVersion > currentCodeVersion) {
+          handleCodeChange(savedVersion);
+        }
+      }
+    })
+    .catch((error) => {
+      console.error("Errore nel controllo della versione del codice:", error);
+      const savedVersion = parseInt(localStorage.getItem("code_version")) || 1;
+      if (savedVersion > currentCodeVersion) {
+        handleCodeChange(savedVersion);
+      }
+    });
+}
+
+function handleCodeChange(newVersion) {
+  currentCodeVersion = newVersion;
+
+  database
+    .ref("settings/secret_code")
+    .once("value")
+    .then((codeSnapshot) => {
+      if (codeSnapshot.exists()) {
+        CORRECT_CODE = codeSnapshot.val();
+        localStorage.setItem("secret_code", CORRECT_CODE);
+        resetSessionForNewCode();
+      }
+    });
+}
+
+function resetSessionForNewCode() {
+  clearStorage("usage_start_time");
+  clearStorage("usage_hash");
+  DEVICES.forEach((device) => {
+    clearStorage(device.storage_key);
+  });
+
+  document.getElementById("controlPanel").style.display = "none";
+  document.getElementById("authCode").style.display = "block";
+  document.getElementById("auth-form").style.display = "block";
+  document.getElementById("btnCheckCode").style.display = "block";
+  document.getElementById("important").style.display = "block";
+
+  showNotification(
+    "Il codice di accesso è stato aggiornato. Inserisci il nuovo codice."
+  );
+}
+
+function checkExpiredLinks() {
+  const secureLinks = JSON.parse(localStorage.getItem("secure_links") || "{}");
+  let updated = false;
+
+  Object.keys(secureLinks).forEach((linkId) => {
+    const link = secureLinks[linkId];
+    if (link.expiration < Date.now() && link.status === "active") {
+      secureLinks[linkId].status = "expired";
+      updated = true;
+    }
+  });
+
+  if (updated) {
+    localStorage.setItem("secure_links", JSON.stringify(secureLinks));
+  }
+}
+
+function showNotification(message, type = "info") {
+  const existingNotification = document.getElementById(
+    "codeChangeNotification"
+  );
+  if (existingNotification) existingNotification.remove();
+
+  const notification = document.createElement("div");
+  notification.id = "codeChangeNotification";
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${type === "warning" ? "#FFA500" : "#FF5A5F"};
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  `;
+
+  notification.innerHTML = `
+    <i class="fas fa-info-circle"></i>
+    <span>${message}</span>
+    <button onclick="this.parentElement.remove()" style="background:none; border:none; color:white; margin-left:10px; cursor:pointer;">
+      <i class="fas fa-times"></i>
+    </button>
+  `;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    if (notification.parentElement) notification.remove();
+  }, 5000);
+}
+
+// =============================================
 // GESTIONE POPUP E INTERAZIONI
 // =============================================
 
 function showConfirmationPopup(device) {
-  // Verifica l'orario di check-in prima di mostrare la conferma
   if (!isCheckinTime()) {
     showEarlyCheckinPopup();
     return;
@@ -414,23 +674,20 @@ function closeConfirmationPopup() {
 
 function showDevicePopup(device, clicksLeft) {
   const popup = document.getElementById(`popup-${device.button_id}`);
-  if (!popup) {
-    console.error(`Popup per ${device.button_id} non trovato`);
-    return;
-  }
+  if (!popup) return;
 
   const text = document.getElementById(`popup-text-${device.button_id}`);
   if (text) {
     if (clicksLeft > 0) {
       text.innerHTML = `
-                    <i class="fas fa-check-circle" style="color:#4CAF50;font-size:2.5rem;margin-bottom:15px;"></i>
-                    <div><strong>${clicksLeft}</strong> Click Left</div>
-                    <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
+        <i class="fas fa-check-circle" style="color:#4CAF50;font-size:2.5rem;margin-bottom:15px;"></i>
+        <div><strong>${clicksLeft}</strong> Click Left</div>
+        <div style="margin-top:10px;font-size:1rem;">Door Unlocked!</div>`;
     } else {
       text.innerHTML = `
-                    <i class="fas fa-exclamation-triangle" style="color:#FFC107;font-size:2.5rem;margin-bottom:15px;"></i>
-                    <div><strong>No more clicks left!</strong></div>
-                    <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
+        <i class="fas fa-exclamation-triangle" style="color:#FFC107;font-size:2.5rem;margin-bottom:15px;"></i>
+        <div><strong>No more clicks left!</strong></div>
+        <div style="margin-top:10px;font-size:1rem;">Contact for Assistance.</div>`;
     }
   }
 
@@ -448,9 +705,12 @@ function closePopup(buttonId) {
 // =============================================
 
 async function activateDevice(device) {
-  if (await checkTimeLimit()) return;
+  if (!sessionStartTime) {
+    sessionStartTime = Date.now();
+    await setUsageStartTime();
+  }
 
-  // Verifica l'orario di check-in
+  if (await checkTimeLimit()) return;
   if (!isCheckinTime()) {
     showEarlyCheckinPopup();
     return;
@@ -497,193 +757,208 @@ async function activateDevice(device) {
   }
 }
 
-// =============================================
-// GESTIONE AMMINISTRAZIONE
-// =============================================
-
-function showAdminPanel() {
-  document.getElementById("adminLogin").style.display = "none";
-  document.getElementById("adminPanel").style.display = "block";
-  document.getElementById("currentCode").textContent = CORRECT_CODE;
-  document.getElementById("currentCodeVersion").textContent =
-    currentCodeVersion;
-  document.getElementById("currentMaxClicks").textContent = MAX_CLICKS;
-  document.getElementById("currentTimeLimit").textContent = TIME_LIMIT_MINUTES;
-  document.getElementById("newMaxClicks").value = MAX_CLICKS;
-  document.getElementById("newTimeLimit").value = TIME_LIMIT_MINUTES;
-
-  // Imposta l'orario di check-in
-  document.getElementById("checkinStartTime").value = CHECKIN_START_TIME;
-  document.getElementById("checkinEndTime").value = CHECKIN_END_TIME;
-  document.getElementById("currentCheckinStartTime").textContent =
-    formatTime(CHECKIN_START_TIME);
-  document.getElementById("currentCheckinEndTime").textContent =
-    formatTime(CHECKIN_END_TIME);
-
-  // Aggiorna stato del toggle (se presente)
-  const btnToggle = document.getElementById("btnToggleCheckinTime");
-  if (btnToggle) {
-    if (CHECKIN_TIME_ENABLED) {
-      btnToggle.textContent = "✅ Check-in Time ON";
-      btnToggle.classList.remove("btn-error");
-      btnToggle.classList.add("btn-success");
-    } else {
-      btnToggle.textContent = "❌ Check-in Time OFF";
-      btnToggle.classList.remove("btn-success");
-      btnToggle.classList.add("btn-error");
-    }
-  }
-}
-
-function handleAdminLogin() {
-  const pass = document.getElementById("adminPass").value.trim();
-  if (pass === ADMIN_PASSWORD) {
-    showAdminPanel();
-  } else {
-    alert("Password admin errata!");
-  }
-}
-
-function handleCodeUpdate() {
-  const newCode = document.getElementById("newCode").value.trim();
-  if (!newCode) {
-    alert("Inserisci un codice valido");
-    return;
-  }
-
-  CORRECT_CODE = newCode;
-  localStorage.setItem("secret_code", newCode);
-  currentCodeVersion += 1;
-  localStorage.setItem(CODE_VERSION_KEY, currentCodeVersion.toString());
-
-  document.getElementById("currentCode").textContent = CORRECT_CODE;
-  document.getElementById("currentCodeVersion").textContent =
-    currentCodeVersion;
-
-  clearStorage("usage_start_time");
-  clearStorage("usage_hash");
-  DEVICES.forEach((device) => {
-    clearStorage(device.storage_key);
-  });
-
-  document.getElementById("controlPanel").style.display = "none";
-  document.getElementById("authCode").style.display = "block";
-  document.getElementById("auth-form").style.display = "block";
-  document.getElementById("btnCheckCode").style.display = "block";
-  document.getElementById("important").style.display = "block";
-
-  alert(
-    "Codice aggiornato con successo! Tutti gli utenti dovranno inserire il nuovo codice."
-  );
-}
-
-function handleSettingsUpdate() {
-  const newMaxClicks = document.getElementById("newMaxClicks").value.trim();
-  const newTimeLimit = document.getElementById("newTimeLimit").value.trim();
-
-  if (!newMaxClicks || isNaN(newMaxClicks) || parseInt(newMaxClicks) <= 0) {
-    alert("Inserisci un numero valido per i click massimi");
-    return;
-  }
-
-  if (!newTimeLimit || isNaN(newTimeLimit) || parseInt(newTimeLimit) <= 0) {
-    alert("Inserisci un numero valido per il tempo limite");
-    return;
-  }
-
-  MAX_CLICKS = parseInt(newMaxClicks);
-  TIME_LIMIT_MINUTES = parseInt(newTimeLimit);
-
-  localStorage.setItem("max_clicks", MAX_CLICKS);
-  localStorage.setItem("time_limit_minutes", TIME_LIMIT_MINUTES);
-
-  DEVICES.forEach((device) => {
-    const currentClicks = getClicksLeft(device.storage_key);
-    if (currentClicks > MAX_CLICKS) {
-      setClicksLeft(device.storage_key, MAX_CLICKS);
-    }
-    updateButtonState(device);
-  });
-
-  document.getElementById("currentMaxClicks").textContent = MAX_CLICKS;
-  document.getElementById("currentTimeLimit").textContent = TIME_LIMIT_MINUTES;
-
-  alert("Impostazioni aggiornate con successo!");
-  updateStatusBar();
-}
-
-// FUNZIONE AGGIUNTA: Gestione orario di check-in (range)
-function handleCheckinTimeUpdate() {
-  const newCheckinStartTime = document.getElementById("checkinStartTime").value;
-  const newCheckinEndTime = document.getElementById("checkinEndTime").value;
-
-  if (!newCheckinStartTime || !newCheckinEndTime) {
-    alert("Inserisci orari validi");
-    return;
-  }
-
-  // Converti in minuti per il confronto
-  const [startHours, startMinutes] = newCheckinStartTime.split(":").map(Number);
-  const [endHours, endMinutes] = newCheckinEndTime.split(":").map(Number);
-
-  const startTimeInMinutes = startHours * 60 + startMinutes;
-  const endTimeInMinutes = endHours * 60 + endMinutes;
-
-  // Verifica che l'orario di fine sia dopo l'orario di inizio
-  if (endTimeInMinutes <= startTimeInMinutes) {
-    document.getElementById("timeRangeError").style.display = "block";
-    return;
-  }
-
-  document.getElementById("timeRangeError").style.display = "none";
-
-  CHECKIN_START_TIME = newCheckinStartTime;
-  CHECKIN_END_TIME = newCheckinEndTime;
-
-  localStorage.setItem("checkin_start_time", newCheckinStartTime);
-  localStorage.setItem("checkin_end_time", newCheckinEndTime);
-
-  // Aggiorna la visualizzazione
-  updateCheckinTimeDisplay();
-  DEVICES.forEach(updateButtonState);
-
-  alert("Orario di check-in aggiornato con successo!");
-}
-
 async function updateGlobalCodeVersion() {
   const savedVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
   if (savedVersion < currentCodeVersion) {
     localStorage.setItem(CODE_VERSION_KEY, currentCodeVersion.toString());
-
-    clearStorage("usage_start_time");
-    clearStorage("usage_hash");
-    DEVICES.forEach((device) => {
-      clearStorage(device.storage_key);
-    });
-
-    document.getElementById("controlPanel").style.display = "none";
-    document.getElementById("authCode").style.display = "block";
-    document.getElementById("auth-form").style.display = "block";
-    document.getElementById("btnCheckCode").style.display = "block";
-    document.getElementById("important").style.display = "block";
-
+    resetSessionForNewCode();
     return true;
   }
   return false;
 }
 
 // =============================================
+// GESTIONE TOKEN SICURI
+// =============================================
+
+async function handleSecureToken() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get("token");
+
+  if (!token) {
+    isTokenSession = false;
+    currentTokenCustomCode = null;
+    return false;
+  }
+
+  try {
+    const snapshot = await database.ref("secure_links/" + token).once("value");
+    if (!snapshot.exists()) {
+      showTokenError("Token non valido");
+      cleanUrl();
+      return false;
+    }
+
+    const linkData = snapshot.val();
+    const isValid = validateSecureToken(linkData);
+
+    if (!isValid.valid) {
+      showTokenError(isValid.reason);
+      cleanUrl();
+      return false;
+    }
+
+    isTokenSession = true;
+    currentTokenId = token;
+    currentTokenCustomCode = linkData.customCode || null;
+
+    showTokenNotification(isValid.remainingUses, !!currentTokenCustomCode);
+    await incrementTokenUsage(token, linkData);
+    cleanUrl();
+    startTokenExpirationCheck(linkData.expiration);
+
+    return true;
+  } catch (error) {
+    console.error("Errore nella verifica del token:", error);
+    showTokenError("Errore di verifica");
+    cleanUrl();
+    return false;
+  }
+}
+
+function validateSecureToken(linkData) {
+  try {
+    if (!linkData) return { valid: false, reason: "Token non valido" };
+    if (linkData.status !== "active")
+      return { valid: false, reason: "Token revocato" };
+    if (linkData.expiration < Date.now())
+      return { valid: false, reason: "Token scaduto" };
+    if (linkData.usedCount >= linkData.maxUsage)
+      return { valid: false, reason: "Utilizzi esauriti" };
+
+    const remainingUses = linkData.maxUsage - linkData.usedCount;
+    return { valid: true, remainingUses: remainingUses };
+  } catch (error) {
+    return { valid: false, reason: "Errore di verifica" };
+  }
+}
+
+async function incrementTokenUsage(token, linkData) {
+  const newUsedCount = linkData.usedCount + 1;
+  const newStatus = newUsedCount >= linkData.maxUsage ? "used" : "active";
+
+  try {
+    await database.ref("secure_links/" + token).update({
+      usedCount: newUsedCount,
+      status: newStatus,
+    });
+  } catch (error) {
+    console.error("Errore nell'aggiornamento del token:", error);
+  }
+}
+
+function showTokenNotification(remainingUses, hasCustomCode) {
+  const notification = document.createElement("div");
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--success);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 350px;
+  `;
+
+  const customCodeInfo = hasCustomCode
+    ? '<div style="font-size: 12px; opacity: 0.9;">Questo link usa un codice dedicato</div>'
+    : '<div style="font-size: 12px; opacity: 0.9;">Questo link usa il codice principale</div>';
+
+  notification.innerHTML = `
+    <i class="fas fa-check-circle"></i>
+    <div>
+      <div>Link sicuro riconosciuto</div>
+      <div style="font-size: 12px; opacity: 0.9;">Utilizzi rimanenti: ${remainingUses}</div>
+      ${customCodeInfo}
+      <div style="font-size: 12px; opacity: 0.9; margin-top: 5px;">
+        <i class="fas fa-info-circle"></i> Inserisci il codice qui sotto
+      </div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="
+      background: none;
+      border: none;
+      color: white;
+      margin-left: 10px;
+      cursor: pointer;
+    ">
+      <i class="fas fa-times"></i>
+    </button>
+  `;
+
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    if (notification.parentElement) notification.remove();
+  }, 5000);
+}
+
+function showTokenError(reason) {
+  const notification = document.createElement("div");
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--error);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 300px;
+  `;
+
+  notification.innerHTML = `
+    <i class="fas fa-exclamation-triangle"></i>
+    <div>
+      <div>Link non valido</div>
+      <div style="font-size: 12px; opacity: 0.9;">Motivo: ${reason}</div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="
+      background: none;
+      border: none;
+      color: white;
+      margin-left: 10px;
+      cursor: pointer;
+    ">
+      <i class="fas fa-times"></i>
+    </button>
+  `;
+
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    if (notification.parentElement) notification.remove();
+  }, 5000);
+}
+
+function cleanUrl() {
+  if (window.history.replaceState) {
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+}
+
+function startTokenExpirationCheck(expirationTime) {
+  const checkTokenExpiration = setInterval(() => {
+    if (Date.now() > expirationTime) {
+      clearInterval(checkTokenExpiration);
+      if (isTokenSession) showSessionExpired();
+    }
+  }, 1000);
+}
+
+// =============================================
 // AUTENTICAZIONE UTENTE
 // =============================================
 
-async function handleCodeSubmit() {
-  const insertedCode = document.getElementById("authCode").value.trim();
-  if (insertedCode !== CORRECT_CODE) {
-    alert("Codice errato! Riprova.");
-    return;
-  }
-
-  await setUsageStartTime();
+async function performManualLogin() {
+  sessionStartTime = null;
   if (await checkTimeLimit()) return;
 
   document.getElementById("controlPanel").style.display = "block";
@@ -692,7 +967,6 @@ async function handleCodeSubmit() {
   document.getElementById("btnCheckCode").style.display = "none";
   document.getElementById("important").style.display = "none";
 
-  // Mostra informazioni sull'orario di check-in
   document.getElementById("checkinTimeInfo").style.display = "block";
   updateCheckinTimeDisplay();
 
@@ -700,39 +974,110 @@ async function handleCodeSubmit() {
   updateStatusBar();
 }
 
+async function handleCodeSubmit() {
+  const insertedCode = document.getElementById("authCode").value.trim();
+  let expectedCode;
+
+  if (isTokenSession && currentTokenCustomCode) {
+    expectedCode = currentTokenCustomCode;
+    console.log("Verifica con codice personalizzato del token:", expectedCode);
+  } else {
+    expectedCode = CORRECT_CODE;
+    console.log("Verifica con codice principale:", expectedCode);
+  }
+
+  if (insertedCode !== expectedCode) {
+    alert("Codice errato! Riprova.");
+    return;
+  }
+
+  await performManualLogin();
+}
+
 // =============================================
 // INIZIALIZZAZIONE DELL'APPLICAZIONE
 // =============================================
 
 async function init() {
-  // Verifica se la versione del codice è cambiata
+  console.log("Inizializzazione app...");
+
+  // Carica impostazioni da Firebase
+  const firebaseSettings = await loadSettingsFromFirebase();
+  if (firebaseSettings) {
+    applyFirebaseSettings(firebaseSettings);
+  }
+
+  // Gestione sessione bloccata
+  if (isSessionStuck()) {
+    console.warn("Rilevata possibile sessione bloccata");
+  }
+
+  // Gestione versione codice
   const savedCodeVersion =
     parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
   if (savedCodeVersion < currentCodeVersion) {
-    clearStorage("usage_start_time");
-    clearStorage("usage_hash");
-    DEVICES.forEach((device) => {
-      clearStorage(device.storage_key);
-    });
-    localStorage.setItem(CODE_VERSION_KEY, currentCodeVersion.toString());
-
-    document.getElementById("controlPanel").style.display = "none";
-    document.getElementById("authCode").style.display = "block";
-    document.getElementById("auth-form").style.display = "block";
-    document.getElementById("btnCheckCode").style.display = "block";
-    document.getElementById("important").style.display = "block";
+    resetSessionForNewCode();
   }
 
-  // Configura gli event listener
+  // Setup event listeners
+  setupEventListeners();
+
+  // Verifica stato sessione
+  const expired = await checkTimeLimit();
+  if (!expired) {
+    const startTime = getStorage("usage_start_time");
+    if (startTime) {
+      sessionStartTime = parseInt(startTime, 10);
+      showControlPanel();
+    } else {
+      showAuthForm();
+    }
+  } else {
+    showAuthForm();
+  }
+
+  updateDoorVisibility();
+
+  // Configurazioni Firebase
+  setupSettingsListener();
+  monitorFirebaseConnection();
+
+  // Gestione token sicuri
+  await handleSecureToken();
+  setupTokenUI();
+
+  // Avvia intervalli
+  setupIntervals();
+
+  // Prevenzione click destro
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  updateCheckinTimeDisplay();
+}
+
+function applyFirebaseSettings(settings) {
+  CORRECT_CODE = settings.secret_code || "2245";
+  MAX_CLICKS = parseInt(settings.max_clicks) || 3;
+  TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes) || 50000;
+
+  localStorage.setItem("secret_code", CORRECT_CODE);
+  localStorage.setItem("max_clicks", MAX_CLICKS.toString());
+  localStorage.setItem("time_limit_minutes", TIME_LIMIT_MINUTES.toString());
+
+  if (settings.code_version) {
+    currentCodeVersion = parseInt(settings.code_version);
+    localStorage.setItem("code_version", currentCodeVersion.toString());
+  }
+}
+
+function setupEventListeners() {
   const btnCheck = document.getElementById("btnCheckCode");
   if (btnCheck) btnCheck.addEventListener("click", handleCodeSubmit);
 
   DEVICES.forEach((device) => {
     const btn = document.getElementById(device.button_id);
     if (btn) {
-      btn.addEventListener("click", () => {
-        showConfirmationPopup(device);
-      });
+      btn.addEventListener("click", () => showConfirmationPopup(device));
     }
   });
 
@@ -756,75 +1101,60 @@ async function init() {
       }
     });
   });
+}
 
-  const btnAdminLogin = document.getElementById("btnAdminLogin");
-  if (btnAdminLogin) btnAdminLogin.addEventListener("click", handleAdminLogin);
+function showControlPanel() {
+  document.getElementById("controlPanel").style.display = "block";
+  document.getElementById("authCode").style.display = "none";
+  document.getElementById("auth-form").style.display = "none";
+  document.getElementById("btnCheckCode").style.display = "none";
+  document.getElementById("important").style.display = "none";
+  document.getElementById("checkinTimeInfo").style.display = "block";
+  updateCheckinTimeDisplay();
+  DEVICES.forEach(updateButtonState);
+  updateStatusBar();
+}
 
-  const btnCodeUpdate = document.getElementById("btnCodeUpdate");
-  if (btnCodeUpdate) btnCodeUpdate.addEventListener("click", handleCodeUpdate);
+function showAuthForm() {
+  document.getElementById("controlPanel").style.display = "none";
+  document.getElementById("authCode").style.display = "block";
+  document.getElementById("auth-form").style.display = "block";
+  document.getElementById("btnCheckCode").style.display = "block";
+  document.getElementById("important").style.display = "block";
+}
 
-  const btnSettingsUpdate = document.getElementById("btnSettingsUpdate");
-  if (btnSettingsUpdate)
-    btnSettingsUpdate.addEventListener("click", handleSettingsUpdate);
+function setupTokenUI() {
+  if (!isTokenSession) return;
 
-  // Event listener per il pulsante dell'orario di check-in
-  const btnUpdateCheckinTime = document.getElementById("btnUpdateCheckinTime");
-  if (btnUpdateCheckinTime) {
-    btnUpdateCheckinTime.addEventListener("click", handleCheckinTimeUpdate);
+  const adminLink = document.querySelector('a[href="admin.html"]');
+  if (adminLink) adminLink.style.display = "none";
+
+  const expiredMessage = document.querySelector("#sessionExpired p");
+  if (expiredMessage) {
+    expiredMessage.textContent =
+      "Il link di accesso è scaduto. Per accedere di nuovo, richiedi un nuovo link.";
   }
 
-  // --- Nuovo: toggle per abilitare/disabilitare il controllo orario ---
-  const btnToggleCheckinTime = document.getElementById("btnToggleCheckinTime");
-  if (btnToggleCheckinTime) {
-    btnToggleCheckinTime.addEventListener("click", () => {
-      CHECKIN_TIME_ENABLED = !CHECKIN_TIME_ENABLED;
-      localStorage.setItem(
-        "checkin_time_enabled",
-        CHECKIN_TIME_ENABLED.toString()
-      );
+  const assistanceBtn = document.querySelector("#sessionExpired .btn-whatsapp");
+  if (assistanceBtn) {
+    assistanceBtn.href =
+      "https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need a new access link";
+    assistanceBtn.innerHTML =
+      '<i class="fab fa-whatsapp"></i> Richiedi nuovo link';
+  }
 
-      if (CHECKIN_TIME_ENABLED) {
-        btnToggleCheckinTime.textContent = "✅ Check-in Time ON";
-        btnToggleCheckinTime.classList.remove("btn-error");
-        btnToggleCheckinTime.classList.add("btn-success");
-      } else {
-        btnToggleCheckinTime.textContent = "❌ Check-in Time OFF";
-        btnToggleCheckinTime.classList.remove("btn-success");
-        btnToggleCheckinTime.classList.add("btn-error");
-      }
-
-      updateCheckinTimeDisplay();
-      DEVICES.forEach(updateButtonState);
-    });
-
-    // Imposta stato iniziale del pulsante
-    if (CHECKIN_TIME_ENABLED) {
-      btnToggleCheckinTime.textContent = "✅ Check-in Time ON";
-      btnToggleCheckinTime.classList.add("btn-success");
+  const authCodeInput = document.getElementById("authCode");
+  if (authCodeInput) {
+    if (currentTokenCustomCode) {
+      authCodeInput.placeholder = "Inserisci il codice dedicato del link";
     } else {
-      btnToggleCheckinTime.textContent = "❌ Check-in Time OFF";
-      btnToggleCheckinTime.classList.add("btn-error");
+      authCodeInput.placeholder = "Inserisci il codice principale";
     }
   }
+}
 
-  const expired = await checkTimeLimit();
-  if (!expired) {
-    const startTime = getStorage("usage_start_time");
-    if (startTime) {
-      document.getElementById("controlPanel").style.display = "block";
-      document.getElementById("authCode").style.display = "none";
-      document.getElementById("auth-form").style.display = "none";
-      document.getElementById("btnCheckCode").style.display = "none";
-      document.getElementById("important").style.display = "none";
-
-      // Mostra informazioni sull'orario di check-in
-      document.getElementById("checkinTimeInfo").style.display = "block";
-      updateCheckinTimeDisplay();
-
-      DEVICES.forEach(updateButtonState);
-      updateStatusBar();
-    }
-  }
+function setupIntervals() {
+  setupCodeChangeListener();
 
   timeCheckInterval = setInterval(async () => {
     const expired = await checkTimeLimit();
@@ -834,29 +1164,7 @@ async function init() {
     }
   }, 1000);
 
-  // Aggiorna l'orario ogni minuto
   setInterval(updateCheckinTimeDisplay, 60000);
-
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-  const toggleBtn = document.getElementById("toggleAdmin");
-  if (toggleBtn) {
-    toggleBtn.addEventListener("click", () => {
-      const adminArea = document.getElementById("adminArea");
-      if (
-        adminArea.style.display === "none" ||
-        adminArea.style.display === ""
-      ) {
-        adminArea.style.display = "block";
-      } else {
-        adminArea.style.display = "none";
-      }
-    });
-  }
-
-  // Inizializza la visualizzazione dell'orario
-  updateCheckinTimeDisplay();
-  updateDoorVisibility();
 }
 
 // =============================================
@@ -864,3 +1172,9 @@ async function init() {
 // =============================================
 
 document.addEventListener("DOMContentLoaded", init);
+
+// Pulisci gli intervalli quando la pagina viene chiusa
+window.addEventListener("beforeunload", function () {
+  if (timeCheckInterval) clearInterval(timeCheckInterval);
+  if (codeCheckInterval) clearInterval(codeCheckInterval);
+});

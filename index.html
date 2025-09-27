@@ -3,18 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zentry - Check-in System</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>N0-key - Check-in System</title>
+    <link rel="stylesheet" href="style.css?v=3.0" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Circular,-apple-system,BlinkMacSystemFont,Roboto,Helvetica Neue,sans-serif&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Circular,-apple-system,BlinkMacSystemFont,Roboto,Helvetica Neue,sans-serif&display=swap"
       rel="stylesheet"
     />
+    <!-- Aggiungi questi script nell'head di index.html -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   </head>
 
   <body>
@@ -36,10 +39,10 @@
       <!-- <button id="toggleAdmin" class="admin-toggle" style="bottom:0px; position: absolute; left: 0px;">⚙️</button> -->
     </div>
 
-    <div class="container">
+    <div class="container"  id="test2">
       <div class="card fade-in">
         <div class="header">
-          <h1 class="logo">MusArt</h1>
+          <h1 class="logo">N<span class="spa">0</span>-key</h1>
           <!-- <div class="subtitle">Check-in Information</div> -->
         </div>
         <div class="card-title">
@@ -55,7 +58,7 @@
         </div>
       </div>
 
-      <div class="card fade-in" id="test2">
+      <div class="card fade-in">
         <div class="auth-container">
           <div class="card-title1">
             <i class="fas fa-key"></i>
@@ -275,11 +278,11 @@
       </div>
 
       <footer class="footer">
-        <p>© 2025 Zentry - All rights reserved</p>
-        <button id="toggleAdmin" class="admin-toggle">⚙️</button>
+        <p>© 2025 N0-key - All rights reserved</p>
+        <a href="admin.html" class="admin-toggle">⚙️</a>
       </footer>
-
-      <!-- Admin Area (hidden) -->
+      <!-- 
+      
       <div id="adminArea" class="admin-area">
         <div id="adminLogin">
           <h3>Admin Login</h3>
@@ -338,11 +341,11 @@
             </div>
 
             <button id="btnSettingsUpdate" class="btn">Update Settings</button>
-          </div>
+          </div> -->
 
-          <!-- 
+      <!-- 
             buttoni extra-->
-          <!-- <div class="admin-section">
+      <!-- <div class="admin-section">
             <h3>Gestione Porte Extra</h3>
             <div>
               <input type="checkbox" id="extraDoor1Visible" /> Mostra Extra Door
@@ -358,8 +361,8 @@
             </button>
           </div> -->
 
-          <!-- Nuova sezione per orario di check-in -->
-
+      <!-- Nuova sezione per orario di check-in -->
+      <!-- 
           <div class="admin-section">
             <h3><i class="fas fa-clock"></i> Check-in Time Settings</h3>
             <p>
@@ -392,9 +395,9 @@
                 Update Check-in Time
               </button>
             </div>
-          </div>
+          </div> -->
 
-          <div class="admin-section">
+      <!-- <div class="admin-section">
             <p>
               <i class="fas fa-exclamation-circle"></i> deactivate range time
               giving access at any time
@@ -407,10 +410,10 @@
               Toggle Check-in Time
             </button>
           </div>
-        </div>
-      </div>
+        </div> 
+      </div>-->
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=3.0"></script>
   </body>
 </html>
