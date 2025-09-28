@@ -948,11 +948,19 @@ function cleanUrl() {
 
 function startTokenExpirationCheck(expirationTime) {
   const checkTokenExpiration = setInterval(() => {
+    // if (Date.now() > expirationTime) {
+    //   clearInterval(checkTokenExpiration);
+    //   // per token scaduto, mostriamo messaggi dedicati (overlay manuale non usato)
+    //   showNotification("Questo link di accesso è scaduto.", "warning");
+    // }
     if (Date.now() > expirationTime) {
       clearInterval(checkTokenExpiration);
-      // per token scaduto, mostriamo messaggi dedicati (overlay manuale non usato)
-      showNotification("Questo link di accesso è scaduto.", "warning");
+      // Blocco duro anche per i token:
+      isTokenSession = false;
+      window.isTokenSession = false;
+      showSessionExpired(); // overlay + pulsanti off
     }
+
   }, 1000);
 }
 
