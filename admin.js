@@ -320,57 +320,119 @@ document
   .getElementById("btnToggleCheckinTime")
   .addEventListener("click", toggleCheckinTime);
 
+// function loadCheckinTimeSettings() {
+//   const s = localStorage.getItem("checkin_start_time") || "12:00";
+//   const e = localStorage.getItem("checkin_end_time") || "23:00";
+//   qs("checkinStartTime").value = s;
+//   qs("checkinEndTime").value = e;
+//   qs("currentCheckinTimeRange").value = `${s} - ${e}`;
+//   updateCheckinTimeStatus();
+// }
+
 function loadCheckinTimeSettings() {
-  const s = localStorage.getItem("checkin_start_time") || "12:00";
-  const e = localStorage.getItem("checkin_end_time") || "23:00";
-  qs("checkinStartTime").value = s;
-  qs("checkinEndTime").value = e;
-  qs("currentCheckinTimeRange").value = `${s} - ${e}`;
-  updateCheckinTimeStatus();
+  // Listener realtime su /settings
+  database.ref("settings").on("value", (snap) => {
+    const s = snap.val() || {};
+    const start = s.checkin_start_time || "14:00";
+    const end = s.checkin_end_time || "22:00";
+    const enabled = String(s.checkin_time_enabled) !== "false";
+
+    // Aggiorna UI admin
+    document.getElementById("checkinStartTime").value = start;
+    document.getElementById("checkinEndTime").value = end;
+    document.getElementById(
+      "currentCheckinTimeRange"
+    ).value = `${start} - ${end}`;
+
+    // Aggiorna stato/label pulsante
+    const checkinTimeStatusEl = document.getElementById("checkinTimeStatus");
+    const toggleButton = document.getElementById("btnToggleCheckinTime");
+
+    if (enabled) {
+      checkinTimeStatusEl.innerHTML =
+        '<span class="status-indicator status-on"></span> Attivo';
+      toggleButton.classList.remove("btn-error");
+      toggleButton.classList.add("btn-success");
+      toggleButton.innerHTML =
+        '<i class="fas fa-toggle-on"></i> Disattiva Controllo Orario';
+    } else {
+      checkinTimeStatusEl.innerHTML =
+        '<span class="status-indicator status-off"></span> Disattivato';
+      toggleButton.classList.remove("btn-success");
+      toggleButton.classList.add("btn-error");
+      toggleButton.innerHTML =
+        '<i class="fas fa-toggle-off"></i> Attiva Controllo Orario';
+    }
+  });
 }
 
-function updateCheckinTimeStatus() {
-  const el = qs("checkinTimeStatus");
-  const toggle = qs("btnToggleCheckinTime");
-  const isEnabled = localStorage.getItem("checkin_time_enabled") !== "false";
 
-  if (isEnabled) {
-    el.innerHTML = '<span class="status-indicator status-on"></span> Attivo';
-    toggle.classList.add("btn-success");
-    toggle.innerHTML =
-      '<i class="fas fa-toggle-on"></i> Disattiva Controllo Orario';
-  } else {
-    el.innerHTML =
-      '<span class="status-indicator status-off"></span> Disattivato';
-    toggle.classList.add("btn-error");
-    toggle.innerHTML =
-      '<i class="fas fa-toggle-off"></i> Attiva Controllo Orario';
-  }
-}
+// function updateCheckinTimeStatus() {
+//   const el = qs("checkinTimeStatus");
+//   const toggle = qs("btnToggleCheckinTime");
+//   const isEnabled = localStorage.getItem("checkin_time_enabled") !== "false";
+
+//   if (isEnabled) {
+//     el.innerHTML = '<span class="status-indicator status-on"></span> Attivo';
+//     toggle.classList.add("btn-success");
+//     toggle.innerHTML =
+//       '<i class="fas fa-toggle-on"></i> Disattiva Controllo Orario';
+//   } else {
+//     el.innerHTML =
+//       '<span class="status-indicator status-off"></span> Disattivato';
+//     toggle.classList.add("btn-error");
+//     toggle.innerHTML =
+//       '<i class="fas fa-toggle-off"></i> Attiva Controllo Orario';
+//   }
+// }
 
 async function updateCheckinTime() {
-  const s = qs("checkinStartTime").value;
-  const e = qs("checkinEndTime").value;
-  if (!s || !e) return alert("Inserisci orari validi");
+  const newStart = document.getElementById("checkinStartTime").value;
+  const newEnd = document.getElementById("checkinEndTime").value;
 
-  if (!isValidTimeRange(s, e)) {
-    qs("timeRangeError").style.display = "block";
+  if (!newStart || !newEnd) {
+    alert("Inserisci orari validi");
     return;
   }
-  qs("timeRangeError").style.display = "none";
+  if (!isValidTimeRange(newStart, newEnd)) {
+    document.getElementById("timeRangeError").style.display = "block";
+    return;
+  }
+  document.getElementById("timeRangeError").style.display = "none";
 
-  const ok1 = await saveSettingToFirebase("checkin_start_time", s);
-  const ok2 = await saveSettingToFirebase("checkin_end_time", e);
-
-  if (ok1 && ok2) {
-    localStorage.setItem("checkin_start_time", s);
-    localStorage.setItem("checkin_end_time", e);
-    qs("currentCheckinTimeRange").value = `${s} - ${e}`;
-    alert("Orario di check-in aggiornato!");
+  const s1 = await saveSettingToFirebase("checkin_start_time", newStart);
+  const s2 = await saveSettingToFirebase("checkin_end_time", newEnd);
+  if (s1 && s2) {
+    alert("Orario di check-in aggiornato con successo!");
   } else {
-    alert("Errore nel salvataggio dell'orario di check-in.");
+    alert("Errore nel salvataggio dell'orario di check-in. Riprovare.");
   }
 }
+
+
+// async function updateCheckinTime() {
+//   const s = qs("checkinStartTime").value;
+//   const e = qs("checkinEndTime").value;
+//   if (!s || !e) return alert("Inserisci orari validi");
+
+//   if (!isValidTimeRange(s, e)) {
+//     qs("timeRangeError").style.display = "block";
+//     return;
+//   }
+//   qs("timeRangeError").style.display = "none";
+
+//   const ok1 = await saveSettingToFirebase("checkin_start_time", s);
+//   const ok2 = await saveSettingToFirebase("checkin_end_time", e);
+
+//   if (ok1 && ok2) {
+//     localStorage.setItem("checkin_start_time", s);
+//     localStorage.setItem("checkin_end_time", e);
+//     qs("currentCheckinTimeRange").value = `${s} - ${e}`;
+//     alert("Orario di check-in aggiornato!");
+//   } else {
+//     alert("Errore nel salvataggio dell'orario di check-in.");
+//   }
+// }
 
 function isValidTimeRange(startTime, endTime) {
   const [sh, sm] = startTime.split(":").map(Number);
@@ -378,20 +440,41 @@ function isValidTimeRange(startTime, endTime) {
   return eh * 60 + em > sh * 60 + sm;
 }
 
+// async function toggleCheckinTime() {
+//   const cur = localStorage.getItem("checkin_time_enabled");
+//   const newVal = cur === null ? false : cur !== "true";
+
+//   const ok = await saveSettingToFirebase(
+//     "checkin_time_enabled",
+//     newVal.toString()
+//   );
+//   if (ok) {
+//     localStorage.setItem("checkin_time_enabled", newVal.toString());
+//     updateCheckinTimeStatus();
+//     alert(`Controllo orario ${newVal ? "attivato" : "disattivato"}!`);
+//   } else {
+//     alert("Errore nel salvataggio impostazione.");
+//   }
+// }
+
+
 async function toggleCheckinTime() {
-  const cur = localStorage.getItem("checkin_time_enabled");
-  const newVal = cur === null ? false : cur !== "true";
+  const snap = await database
+    .ref("settings/checkin_time_enabled")
+    .once("value");
+  const current = String(snap.val()) !== "false";
+  const newStatus = !current;
 
   const ok = await saveSettingToFirebase(
     "checkin_time_enabled",
-    newVal.toString()
+    newStatus.toString()
   );
   if (ok) {
-    localStorage.setItem("checkin_time_enabled", newVal.toString());
-    updateCheckinTimeStatus();
-    alert(`Controllo orario ${newVal ? "attivato" : "disattivato"}!`);
+    alert(
+      `Controllo orario ${newStatus ? "attivato" : "disattivato"} con successo!`
+    );
   } else {
-    alert("Errore nel salvataggio impostazione.");
+    alert("Errore nel salvataggio delle impostazioni. Riprovare.");
   }
 }
 

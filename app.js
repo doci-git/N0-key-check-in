@@ -68,11 +68,21 @@ let TIME_LIMIT_MINUTES =
 let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
 let currentCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
 
-// Variabili per l'orario di check-in
-let CHECKIN_START_TIME = localStorage.getItem("checkin_start_time") || "12:00";
-let CHECKIN_END_TIME = localStorage.getItem("checkin_end_time") || "23:00";
-let CHECKIN_TIME_ENABLED =
-  localStorage.getItem("checkin_time_enabled") !== "false";
+// // Variabili per l'orario di check-in
+// let CHECKIN_START_TIME = localStorage.getItem("checkin_start_time") || "12:00";
+// let CHECKIN_END_TIME = localStorage.getItem("checkin_end_time") || "23:00";
+// let CHECKIN_TIME_ENABLED =
+//   localStorage.getItem("checkin_time_enabled") !== "false";
+// PRIMA (da rimuovere)
+// let CHECKIN_START_TIME = localStorage.getItem("checkin_start_time") || "14:00";
+// let CHECKIN_END_TIME   = localStorage.getItem("checkin_end_time")   || "22:00";
+// let CHECKIN_TIME_ENABLED = localStorage.getItem("checkin_time_enabled") !== "false";
+
+// DOPO (default; poi arrivano da Firebase via listener)
+let CHECKIN_START_TIME = "14:00";
+let CHECKIN_END_TIME   = "22:00";
+let CHECKIN_TIME_ENABLED = true;
+
 
 // Variabili di stato
 let isTokenSession = false; // <— USARE SEMPRE QUESTA
@@ -168,32 +178,63 @@ function setupSettingsListener() {
   });
 }
 
+// function updateSettingsFromFirebase(settings) {
+//   if (settings.secret_code) {
+//     CORRECT_CODE = settings.secret_code;
+//     localStorage.setItem("secret_code", settings.secret_code);
+//   }
+
+//   if (settings.max_clicks) {
+//     MAX_CLICKS = parseInt(settings.max_clicks);
+//     localStorage.setItem("max_clicks", settings.max_clicks);
+//   }
+
+//   if (settings.time_limit_minutes) {
+//     TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes);
+//     localStorage.setItem("time_limit_minutes", settings.time_limit_minutes);
+//   }
+
+//   if (settings.code_version) {
+//     const savedVersion = parseInt(settings.code_version);
+//     if (savedVersion > currentCodeVersion) {
+//       checkCodeVersion();
+//     }
+//   }
+
+//   updateStatusBar();
+//   DEVICES.forEach(updateButtonState);
+// }
 function updateSettingsFromFirebase(settings) {
   if (settings.secret_code) {
     CORRECT_CODE = settings.secret_code;
     localStorage.setItem("secret_code", settings.secret_code);
   }
-
   if (settings.max_clicks) {
-    MAX_CLICKS = parseInt(settings.max_clicks);
+    MAX_CLICKS = parseInt(settings.max_clicks, 10);
     localStorage.setItem("max_clicks", settings.max_clicks);
   }
-
   if (settings.time_limit_minutes) {
-    TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes);
+    TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes, 10);
     localStorage.setItem("time_limit_minutes", settings.time_limit_minutes);
   }
 
-  if (settings.code_version) {
-    const savedVersion = parseInt(settings.code_version);
-    if (savedVersion > currentCodeVersion) {
-      checkCodeVersion();
-    }
+  // ✅ NUOVO: orari da Firebase (no LS)
+  if (typeof settings.checkin_start_time === "string") {
+    CHECKIN_START_TIME = settings.checkin_start_time;
+  }
+  if (typeof settings.checkin_end_time === "string") {
+    CHECKIN_END_TIME = settings.checkin_end_time;
+  }
+  if (typeof settings.checkin_time_enabled !== "undefined") {
+    CHECKIN_TIME_ENABLED = String(settings.checkin_time_enabled) !== "false";
   }
 
-  updateStatusBar();
+  // refresh UI
+  updateCheckinTimeDisplay();
   DEVICES.forEach(updateButtonState);
+  updateStatusBar();
 }
+
 
 function monitorFirebaseConnection() {
   const connectedRef = database.ref(".info/connected");
@@ -1071,20 +1112,43 @@ async function init() {
   updateCheckinTimeDisplay();
 }
 
+// function applyFirebaseSettings(settings) {
+//   CORRECT_CODE = settings.secret_code || "2245";
+//   MAX_CLICKS = parseInt(settings.max_clicks) || 3;
+//   TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes) || 50000;
+
+//   localStorage.setItem("secret_code", CORRECT_CODE);
+//   localStorage.setItem("max_clicks", MAX_CLICKS.toString());
+//   localStorage.setItem("time_limit_minutes", TIME_LIMIT_MINUTES.toString());
+
+//   if (settings.code_version) {
+//     currentCodeVersion = parseInt(settings.code_version);
+//     localStorage.setItem("code_version", currentCodeVersion.toString());
+//   }
+// }
 function applyFirebaseSettings(settings) {
-  CORRECT_CODE = settings.secret_code || "2245";
-  MAX_CLICKS = parseInt(settings.max_clicks) || 3;
-  TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes) || 50000;
+  if (settings.secret_code) {
+    CORRECT_CODE = settings.secret_code;
+    localStorage.setItem("secret_code", settings.secret_code);
+  }
+  if (settings.max_clicks) {
+    MAX_CLICKS = parseInt(settings.max_clicks, 10);
+    localStorage.setItem("max_clicks", settings.max_clicks);
+  }
+  if (settings.time_limit_minutes) {
+    TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes, 10);
+    localStorage.setItem("time_limit_minutes", settings.time_limit_minutes);
+  }
 
-  localStorage.setItem("secret_code", CORRECT_CODE);
-  localStorage.setItem("max_clicks", MAX_CLICKS.toString());
-  localStorage.setItem("time_limit_minutes", TIME_LIMIT_MINUTES.toString());
-
-  if (settings.code_version) {
-    currentCodeVersion = parseInt(settings.code_version);
-    localStorage.setItem("code_version", currentCodeVersion.toString());
+  // ✅ NUOVO: inizializza orari check-in solo da Firebase
+  if (settings.checkin_start_time)
+    CHECKIN_START_TIME = settings.checkin_start_time;
+  if (settings.checkin_end_time) CHECKIN_END_TIME = settings.checkin_end_time;
+  if (typeof settings.checkin_time_enabled !== "undefined") {
+    CHECKIN_TIME_ENABLED = String(settings.checkin_time_enabled) !== "false";
   }
 }
+
 
 function setupEventListeners() {
   const btnCheck = document.getElementById("btnCheckCode");
