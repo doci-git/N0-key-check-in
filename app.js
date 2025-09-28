@@ -69,8 +69,8 @@ let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
 let currentCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
 
 // Variabili per l'orario di check-in
-let CHECKIN_START_TIME = localStorage.getItem("checkin_start_time") || "14:00";
-let CHECKIN_END_TIME = localStorage.getItem("checkin_end_time") || "22:00";
+let CHECKIN_START_TIME = localStorage.getItem("checkin_start_time") || "12:00";
+let CHECKIN_END_TIME = localStorage.getItem("checkin_end_time") || "23:00";
 let CHECKIN_TIME_ENABLED =
   localStorage.getItem("checkin_time_enabled") !== "false";
 

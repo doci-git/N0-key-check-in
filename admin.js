@@ -321,8 +321,8 @@ document
   .addEventListener("click", toggleCheckinTime);
 
 function loadCheckinTimeSettings() {
-  const s = localStorage.getItem("checkin_start_time") || "14:00";
-  const e = localStorage.getItem("checkin_end_time") || "22:00";
+  const s = localStorage.getItem("checkin_start_time") || "12:00";
+  const e = localStorage.getItem("checkin_end_time") || "23:00";
   qs("checkinStartTime").value = s;
   qs("checkinEndTime").value = e;
   qs("currentCheckinTimeRange").value = `${s} - ${e}`;
