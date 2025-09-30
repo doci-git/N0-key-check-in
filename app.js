@@ -95,6 +95,16 @@ let codeCheckInterval;
 let CODE_CHECK_INTERVAL;
 let LINK_CHECK_INTERVAL;
 
+// app.js – vicino alle costanti
+const KEEP_TOKEN_IN_URL = true; // ← lascia il token nell'URL dopo la verifica
+
+// helper
+function maybeCleanUrl() {
+  if (!KEEP_TOKEN_IN_URL) {
+    cleanUrl(); // la tua funzione esistente
+  }
+}
+
 // Inizializza Firebase
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
@@ -827,7 +837,7 @@ async function handleSecureToken() {
     const snapshot = await database.ref("secure_links/" + token).once("value");
     if (!snapshot.exists()) {
       showTokenError("Token non valido");
-      cleanUrl();
+      maybeCleanUrl();
       return false;
     }
 
@@ -836,7 +846,7 @@ async function handleSecureToken() {
 
     if (!isValid.valid) {
       showTokenError(isValid.reason);
-      cleanUrl();
+      maybeCleanUrl();
       return false;
     }
 
@@ -847,14 +857,14 @@ async function handleSecureToken() {
 
     showTokenNotification(isValid.remainingUses, !!currentTokenCustomCode);
     await incrementTokenUsage(token, linkData);
-    cleanUrl();
+    maybeCleanUrl();
     startTokenExpirationCheck(linkData.expiration);
 
     return true;
   } catch (error) {
     console.error("Errore nella verifica del token:", error);
     showTokenError("Errore di verifica");
-    cleanUrl();
+    maybeCleanUrl();
     return false;
   }
 }
@@ -1001,8 +1011,11 @@ function startTokenExpirationCheck(expirationTime) {
       window.isTokenSession = false;
       showSessionExpired(); // overlay + pulsanti off
     }
+    
+
 
   }, 1000);
+  
 }
 
 // =============================================
