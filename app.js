@@ -855,10 +855,16 @@ async function handleSecureToken() {
     currentTokenId = token;
     currentTokenCustomCode = linkData.customCode || null;
 
+    // sblocca blocchi precedenti (nuovo token valido = nuova sessione autorizzata)
+    localStorage.removeItem("block_manual_login");
+    localStorage.removeItem("blocked_token");
+    localStorage.removeItem("blocked_reason");
+
     showTokenNotification(isValid.remainingUses, !!currentTokenCustomCode);
     await incrementTokenUsage(token, linkData);
     maybeCleanUrl();
     startTokenExpirationCheck(linkData.expiration);
+    startTokenRealtimeListener(token); // ⟵ NEW: ascolta revoche/scadenze/usi esauriti in tempo reale
 
     return true;
   } catch (error) {
@@ -868,6 +874,91 @@ async function handleSecureToken() {
     return false;
   }
 }
+
+// --- Realtime logout al cambio stato del token ---
+let tokenRef = null;
+
+function stopTokenRealtimeListener() {
+  if (tokenRef) {
+    tokenRef.off();
+    tokenRef = null;
+  }
+}
+
+// function forceLogoutFromToken(reason = "Link non più valido") {
+//   // esci dalla modalità 'token' così l'overlay di scadenza può apparire
+//   isTokenSession = false;
+//   window.isTokenSession = false;
+//   try { showTokenError(reason); } catch (_) {}
+//   showSessionExpired();
+//   stopTokenRealtimeListener();
+
+//   // opzionale: reindirizza a una pagina dedicata
+//   // setTimeout(() => window.location.replace("expired.html"), 300);
+// }
+
+function clearManualSession() {
+  try {
+    localStorage.removeItem("usage_start_time");
+    localStorage.removeItem("usage_hash");
+    localStorage.removeItem("auth_verified");
+    localStorage.removeItem("auth_timestamp");
+    sessionStartTime = null;
+  } catch (e) {
+    console.error("Errore clearManualSession:", e);
+  }
+}
+
+function blockAccess(reason = "Link non più valido", token = null) {
+  try {
+    localStorage.setItem("block_manual_login", "1");
+    localStorage.setItem("blocked_reason", reason);
+    if (token) localStorage.setItem("blocked_token", token);
+  } catch (e) {
+    console.error("Errore blockAccess:", e);
+  }
+}
+
+function forceLogoutFromToken(reason = "Link non più valido") {
+  // esci da modalità token, così l’overlay può comparire (showSessionExpired salta solo se isTokenSession === true)
+  isTokenSession = false;
+  window.isTokenSession = false;
+
+  // blocca la sessione manuale e persisti il blocco
+  clearManualSession();
+  const urlParams = new URLSearchParams(window.location.search);
+  const t = currentTokenId || urlParams.get("token") || null;
+  blockAccess(reason, t);
+
+  try {
+    showTokenError(reason);
+  } catch (_) {}
+  showSessionExpired(); // disabilita pulsanti, mostra overlay (perché non siamo in token mode) :contentReference[oaicite:5]{index=5}
+  stopTokenRealtimeListener();
+}
+
+
+function startTokenRealtimeListener(token) {
+  stopTokenRealtimeListener(); // assicurati che non ci siano doppi listener
+  tokenRef = database.ref("secure_links/" + token);
+  tokenRef.on("value", (snap) => {
+    if (!snap.exists()) {
+      forceLogoutFromToken("Link rimosso");
+      return;
+    }
+    const d = snap.val();
+    const now = Date.now();
+    const exhausted = (d.usedCount || 0) >= (d.maxUsage || 0);
+    const expired   = (d.expiration || 0) <= now;
+    const revoked   = d.status !== "active";
+
+    if (revoked || expired || exhausted) {
+      const why = revoked ? "Link revocato" : expired ? "Link scaduto" : "Utilizzi esauriti";
+      forceLogoutFromToken(why);
+    }
+  });
+}
+
 
 function validateSecureToken(linkData) {
   try {
@@ -1068,77 +1159,90 @@ async function handleCodeSubmit() {
 // INIZIALIZZAZIONE DELL'APPLICAZIONE
 // =============================================
 
+// =============================================
+// INIZIALIZZAZIONE DELL'APPLICAZIONE (NUOVA VERSIONE)
+// =============================================
 async function init() {
-  console.log("Inizializzazione app...");
+  console.log("Inizializzazione app.");
 
-  // Carica impostazioni da Firebase
+  // 1) Carica impostazioni da Firebase e applica subito
   const firebaseSettings = await loadSettingsFromFirebase();
   if (firebaseSettings) {
     applyFirebaseSettings(firebaseSettings);
   }
 
-  // Gestione sessione bloccata (solo warning console)
+  // 2) Warning su possibili sessioni bloccate (diagnostica)
   if (isSessionStuck()) {
     console.warn("Rilevata possibile sessione bloccata");
   }
 
-  // Gestione versione codice
-  const savedCodeVersion =
-    parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
+  // 3) Versioning del codice (come prima)
+  const savedCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
   if (savedCodeVersion < currentCodeVersion) {
     resetSessionForNewCode();
   }
 
-  // Setup event listeners
+  // 4) Event listeners UI
   setupEventListeners();
 
-  // Verifica stato sessione manuale preesistente
-  const expired = await checkTimeLimit();
-  if (!expired) {
-    const startTime = getStorage("usage_start_time");
-    if (startTime) {
-      sessionStartTime = parseInt(startTime, 10);
-      showControlPanel();
-    } else {
-      showAuthForm();
-    }
-  } else {
-    showAuthForm();
-  }
-
-  updateDoorVisibility();
-
-  // Configurazioni Firebase
+  // 5) Listener realtime impostazioni + stato connessione Firebase
   setupSettingsListener();
   monitorFirebaseConnection();
 
-  // Gestione token sicuri
+  // 6) Applica eventuale BLOCCO persistente (revoca/scadenza) PRIMA di tutto
+  const isBlocked = localStorage.getItem("block_manual_login") === "1";
+  if (isBlocked) {
+    // forza modalità "non token" per permettere l'overlay
+    isTokenSession = false;
+    window.isTokenSession = false;
+    showSessionExpired(); // overlay + pulsanti disabilitati
+  }
+
+  // 7) GESTIONE TOKEN — PRIMA della sessione manuale
+  //    (se il link è valido sblocca anche un eventuale blocco precedente)
   await handleSecureToken();
   setupTokenUI();
 
-  // Avvia intervalli
+  // Se un nuovo token valido è arrivato, rimuovi eventuale blocco persistente
+  if (isTokenSession) {
+    localStorage.removeItem("block_manual_login");
+    localStorage.removeItem("blocked_token");
+    localStorage.removeItem("blocked_reason");
+  }
+
+  // 8) Se NON c'è token-session valida ed è ancora bloccato, NON riaprire la sessione manuale
+  if (!isTokenSession && localStorage.getItem("block_manual_login") === "1") {
+    // Rimani sull'overlay mostrato al punto 6; non mostrare auth/control panel
+  } else {
+    // 9) Sessione manuale (come prima) — solo se non bloccato
+    const expired = await checkTimeLimit();
+    if (!expired) {
+      const startTime = getStorage("usage_start_time");
+      if (startTime) {
+        sessionStartTime = parseInt(startTime, 10);
+        showControlPanel();
+      } else {
+        showAuthForm();
+      }
+    } else {
+      showAuthForm();
+    }
+  }
+
+  // 10) UI varie
+  updateDoorVisibility();
+
+  // 11) Avvia intervalli periodici (time limit, code version, ecc.)
   setupIntervals();
 
-  // Prevenzione click destro
+  // 12) UX: disabilita click destro
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
+  // 13) Aggiorna info orario check-in
   updateCheckinTimeDisplay();
 }
 
-// function applyFirebaseSettings(settings) {
-//   CORRECT_CODE = settings.secret_code || "2245";
-//   MAX_CLICKS = parseInt(settings.max_clicks) || 3;
-//   TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes) || 50000;
 
-//   localStorage.setItem("secret_code", CORRECT_CODE);
-//   localStorage.setItem("max_clicks", MAX_CLICKS.toString());
-//   localStorage.setItem("time_limit_minutes", TIME_LIMIT_MINUTES.toString());
-
-//   if (settings.code_version) {
-//     currentCodeVersion = parseInt(settings.code_version);
-//     localStorage.setItem("code_version", currentCodeVersion.toString());
-//   }
-// }
 function applyFirebaseSettings(settings) {
   if (settings.secret_code) {
     CORRECT_CODE = settings.secret_code;
@@ -1153,7 +1257,7 @@ function applyFirebaseSettings(settings) {
     localStorage.setItem("time_limit_minutes", settings.time_limit_minutes);
   }
 
-  // ✅ NUOVO: inizializza orari check-in solo da Firebase
+  //  inizializza orari check-in solo da Firebase
   if (settings.checkin_start_time)
     CHECKIN_START_TIME = settings.checkin_start_time;
   if (settings.checkin_end_time) CHECKIN_END_TIME = settings.checkin_end_time;
@@ -1270,4 +1374,5 @@ document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("beforeunload", function () {
   if (timeCheckInterval) clearInterval(timeCheckInterval);
   if (codeCheckInterval) clearInterval(codeCheckInterval);
+  stopTokenRealtimeListener(); 
 });
