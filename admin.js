@@ -254,28 +254,7 @@ document
   .getElementById("btnCodeUpdate")
   .addEventListener("click", updateSecretCode);
 
-// async function updateSecretCode() {
-//   const newCode = qs("newCode").value.trim();
-//   if (!newCode) return alert("Inserisci un codice valido");
 
-//   try {
-//     await database.ref("settings").update({
-//       secret_code: newCode,
-//       code_version: firebase.database.ServerValue.increment(1),
-//       global_block_message: "Codice aggiornato: accedi di nuovo.", // opzionale
-//     });
-
-//     // cache locale (facoltativa)
-//     localStorage.setItem("secret_code", newCode);
-
-//     qs("currentCode").value = newCode;
-//     qs("newCode").value = "";
-//     alert("Codice aggiornato! Gli utenti verranno scollegati.");
-//   } catch (e) {
-//     console.error("Errore nel salvataggio del nuovo codice:", e);
-//     alert("Errore nel salvataggio del nuovo codice.");
-//   }
-// }
 
 async function updateSecretCode() {
   const newCode = qs("newCode").value.trim();
