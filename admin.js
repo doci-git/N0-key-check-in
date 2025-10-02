@@ -948,7 +948,7 @@ if (document.getElementById("btnResetSessions")) {
       try {
         await database.ref("settings").update({
           session_reset_version: firebase.database.ServerValue.increment(1),
-          global_unblock_message: "Sessioni ripristinate dall’amministratore",
+          global_unblock_message: "Sessioni ripristinate dall’amministratore 'refresh the page'",
         });
         alert("Tutte le sessioni sono state ripristinate.");
       } catch (e) {
