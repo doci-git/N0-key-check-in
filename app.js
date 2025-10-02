@@ -188,32 +188,6 @@ function setupSettingsListener() {
   });
 }
 
-// function updateSettingsFromFirebase(settings) {
-//   if (settings.secret_code) {
-//     CORRECT_CODE = settings.secret_code;
-//     localStorage.setItem("secret_code", settings.secret_code);
-//   }
-
-//   if (settings.max_clicks) {
-//     MAX_CLICKS = parseInt(settings.max_clicks);
-//     localStorage.setItem("max_clicks", settings.max_clicks);
-//   }
-
-//   if (settings.time_limit_minutes) {
-//     TIME_LIMIT_MINUTES = parseInt(settings.time_limit_minutes);
-//     localStorage.setItem("time_limit_minutes", settings.time_limit_minutes);
-//   }
-
-//   if (settings.code_version) {
-//     const savedVersion = parseInt(settings.code_version);
-//     if (savedVersion > currentCodeVersion) {
-//       checkCodeVersion();
-//     }
-//   }
-
-//   updateStatusBar();
-//   DEVICES.forEach(updateButtonState);
-// }
 function updateSettingsFromFirebase(settings) {
   if (settings.secret_code) {
     CORRECT_CODE = settings.secret_code;
@@ -887,29 +861,6 @@ function stopTokenRealtimeListener() {
   }
 }
 
-// function forceLogoutFromToken(reason = "Link non più valido") {
-//   // esci dalla modalità 'token' così l'overlay di scadenza può apparire
-//   isTokenSession = false;
-//   window.isTokenSession = false;
-//   try { showTokenError(reason); } catch (_) {}
-//   showSessionExpired();
-//   stopTokenRealtimeListener();
-
-//   // opzionale: reindirizza a una pagina dedicata
-//   // setTimeout(() => window.location.replace("expired.html"), 300);
-// }
-
-// function clearManualSession() {
-//   try {
-//     localStorage.removeItem("usage_start_time");
-//     localStorage.removeItem("usage_hash");
-//     localStorage.removeItem("auth_verified");
-//     localStorage.removeItem("auth_timestamp");
-//     sessionStartTime = null;
-//   } catch (e) {
-//     console.error("Errore clearManualSession:", e);
-//   }
-// }
 // —— util per blocco persistente
 // ——— BLOCCO PERSISTENTE DOPO REVOCA/SCADENZA/CAMBIO CODICE ———
 function clearManualSession() {
@@ -1153,11 +1104,7 @@ function cleanUrl() {
 
 function startTokenExpirationCheck(expirationTime) {
   const checkTokenExpiration = setInterval(() => {
-    // if (Date.now() > expirationTime) {
-    //   clearInterval(checkTokenExpiration);
-    //   // per token scaduto, mostriamo messaggi dedicati (overlay manuale non usato)
-    //   showNotification("Questo link di accesso è scaduto.", "warning");
-    // }
+  
    if (Date.now() > expirationTime) {
      clearInterval(checkTokenExpiration);
      isTokenSession = false;
@@ -1219,9 +1166,7 @@ async function handleCodeSubmit() {
   await performManualLogin();
 }
 
-// =============================================
-// INIZIALIZZAZIONE DELL'APPLICAZIONE
-// =============================================
+
 
 // =============================================
 // INIZIALIZZAZIONE DELL'APPLICAZIONE (NUOVA VERSIONE)

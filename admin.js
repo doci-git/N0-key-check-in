@@ -254,27 +254,51 @@ document
   .getElementById("btnCodeUpdate")
   .addEventListener("click", updateSecretCode);
 
+// async function updateSecretCode() {
+//   const newCode = qs("newCode").value.trim();
+//   if (!newCode) return alert("Inserisci un codice valido");
+
+//   try {
+//     await database.ref("settings").update({
+//       secret_code: newCode,
+//       code_version: firebase.database.ServerValue.increment(1),
+//       global_block_message: "Codice aggiornato: accedi di nuovo.", // opzionale
+//     });
+
+//     // cache locale (facoltativa)
+//     localStorage.setItem("secret_code", newCode);
+
+//     qs("currentCode").value = newCode;
+//     qs("newCode").value = "";
+//     alert("Codice aggiornato! Gli utenti verranno scollegati.");
+//   } catch (e) {
+//     console.error("Errore nel salvataggio del nuovo codice:", e);
+//     alert("Errore nel salvataggio del nuovo codice.");
+//   }
+// }
+
 async function updateSecretCode() {
   const newCode = qs("newCode").value.trim();
-  if (!newCode) return alert("Inserisci un codice valido");
+ if (!newCode) return alert("Inserisci un codice valido");
 
-  try {
-    await database.ref("settings").update({
-      secret_code: newCode,
-      code_version: firebase.database.ServerValue.increment(1),
-      global_block_message: "Codice aggiornato: accedi di nuovo.", // opzionale
-    });
+  const ok = await saveSettingToFirebase("secret_code", newCode);
+  if (!ok) return alert("Errore nel salvataggio del nuovo codice.");
 
-    // cache locale (facoltativa)
-    localStorage.setItem("secret_code", newCode);
+  localStorage.setItem("secret_code", newCode);
 
-    qs("currentCode").value = newCode;
-    qs("newCode").value = "";
-    alert("Codice aggiornato! Gli utenti verranno scollegati.");
-  } catch (e) {
-    console.error("Errore nel salvataggio del nuovo codice:", e);
-    alert("Errore nel salvataggio del nuovo codice.");
-  }
+  // bump versione codice (come nel tuo originale)
+  const currentVersion = parseInt(localStorage.getItem("code_version")) || 1;
+  const newVersion = currentVersion + 1;
+  localStorage.setItem("code_version", newVersion.toString());
+  await saveSettingToFirebase("code_version", newVersion);
+
+  const timestamp = Date.now().toString();
+  localStorage.setItem("last_code_update", timestamp);
+  await saveSettingToFirebase("last_code_update", timestamp);
+
+  qs("currentCode").value = newCode;
+  qs("newCode").value = "";
+  alert("Codice aggiornato! Gli utenti dovranno usare il nuovo codice.");
 }
 
 
@@ -320,14 +344,6 @@ document
   .getElementById("btnToggleCheckinTime")
   .addEventListener("click", toggleCheckinTime);
 
-// function loadCheckinTimeSettings() {
-//   const s = localStorage.getItem("checkin_start_time") || "12:00";
-//   const e = localStorage.getItem("checkin_end_time") || "23:00";
-//   qs("checkinStartTime").value = s;
-//   qs("checkinEndTime").value = e;
-//   qs("currentCheckinTimeRange").value = `${s} - ${e}`;
-//   updateCheckinTimeStatus();
-// }
 
 function loadCheckinTimeSettings() {
   // Listener realtime su /settings
@@ -367,24 +383,6 @@ function loadCheckinTimeSettings() {
 }
 
 
-// function updateCheckinTimeStatus() {
-//   const el = qs("checkinTimeStatus");
-//   const toggle = qs("btnToggleCheckinTime");
-//   const isEnabled = localStorage.getItem("checkin_time_enabled") !== "false";
-
-//   if (isEnabled) {
-//     el.innerHTML = '<span class="status-indicator status-on"></span> Attivo';
-//     toggle.classList.add("btn-success");
-//     toggle.innerHTML =
-//       '<i class="fas fa-toggle-on"></i> Disattiva Controllo Orario';
-//   } else {
-//     el.innerHTML =
-//       '<span class="status-indicator status-off"></span> Disattivato';
-//     toggle.classList.add("btn-error");
-//     toggle.innerHTML =
-//       '<i class="fas fa-toggle-off"></i> Attiva Controllo Orario';
-//   }
-// }
 
 async function updateCheckinTime() {
   const newStart = document.getElementById("checkinStartTime").value;
@@ -410,29 +408,6 @@ async function updateCheckinTime() {
 }
 
 
-// async function updateCheckinTime() {
-//   const s = qs("checkinStartTime").value;
-//   const e = qs("checkinEndTime").value;
-//   if (!s || !e) return alert("Inserisci orari validi");
-
-//   if (!isValidTimeRange(s, e)) {
-//     qs("timeRangeError").style.display = "block";
-//     return;
-//   }
-//   qs("timeRangeError").style.display = "none";
-
-//   const ok1 = await saveSettingToFirebase("checkin_start_time", s);
-//   const ok2 = await saveSettingToFirebase("checkin_end_time", e);
-
-//   if (ok1 && ok2) {
-//     localStorage.setItem("checkin_start_time", s);
-//     localStorage.setItem("checkin_end_time", e);
-//     qs("currentCheckinTimeRange").value = `${s} - ${e}`;
-//     alert("Orario di check-in aggiornato!");
-//   } else {
-//     alert("Errore nel salvataggio dell'orario di check-in.");
-//   }
-// }
 
 function isValidTimeRange(startTime, endTime) {
   const [sh, sm] = startTime.split(":").map(Number);
@@ -440,22 +415,6 @@ function isValidTimeRange(startTime, endTime) {
   return eh * 60 + em > sh * 60 + sm;
 }
 
-// async function toggleCheckinTime() {
-//   const cur = localStorage.getItem("checkin_time_enabled");
-//   const newVal = cur === null ? false : cur !== "true";
-
-//   const ok = await saveSettingToFirebase(
-//     "checkin_time_enabled",
-//     newVal.toString()
-//   );
-//   if (ok) {
-//     localStorage.setItem("checkin_time_enabled", newVal.toString());
-//     updateCheckinTimeStatus();
-//     alert(`Controllo orario ${newVal ? "attivato" : "disattivato"}!`);
-//   } else {
-//     alert("Errore nel salvataggio impostazione.");
-//   }
-// }
 
 
 async function toggleCheckinTime() {
