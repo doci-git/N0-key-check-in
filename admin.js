@@ -939,6 +939,24 @@ document
   .addEventListener("click", () => {
     if (confirm("Ripristinare la sessione locale?")) resetLocalSession();
   });
+// ——— Ripristina tutte le sessioni (unlock globale) ———
+if (document.getElementById("btnResetSessions")) {
+  document
+    .getElementById("btnResetSessions")
+    .addEventListener("click", async () => {
+      if (!confirm("Sbloccare e riportare al login tutti i client?")) return;
+      try {
+        await database.ref("settings").update({
+          session_reset_version: firebase.database.ServerValue.increment(1),
+          global_unblock_message: "Sessioni ripristinate dall’amministratore",
+        });
+        alert("Tutte le sessioni sono state ripristinate.");
+      } catch (e) {
+        console.error(e);
+        alert("Errore nel ripristino delle sessioni.");
+      }
+    });
+}
 
 function resetLocalSession() {
   try {

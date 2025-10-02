@@ -259,6 +259,11 @@
     color: white;
     border: none;
 }
+.btn-warning1 {
+    background: linear-gradient(135deg, #f11313, #f51400);
+    color: white;
+    border: none;
+} 
 
 .btn-warning:hover {
     background: linear-gradient(135deg, #f57c00, #e65100);
@@ -273,12 +278,23 @@
     margin: 15px 0;
     font-size: 14px;
 }
+.warning-box1 {
+    background: #fcc3c3;
+    border: 1px solid #ff684d;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 15px 0;
+    font-size: 14px;
+}
 
 .warning-box i {
     color: #ff9800;
     margin-right: 8px;
 }
-
+.warning-box1 i {
+    color: #ff0000;
+    margin-right: 8px;
+}
 .reset-result {
     margin-top: 15px;
     padding: 12px;

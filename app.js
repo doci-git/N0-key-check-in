@@ -97,6 +97,8 @@ let LINK_CHECK_INTERVAL;
 
 // app.js – vicino alle costanti
 const KEEP_TOKEN_IN_URL = true; // ← lascia il token nell'URL dopo la verifica
+const UNBLOCK_VERSION_KEY = "unblock_version";
+
 
 // helper
 function maybeCleanUrl() {
@@ -617,6 +619,7 @@ function resetSessionForNewCode() {
   );
 }
 
+
 function checkExpiredLinks() {
   const secureLinks = JSON.parse(localStorage.getItem("secure_links") || "{}");
   let updated = false;
@@ -903,25 +906,50 @@ function forceGlobalLogout(reason = "Codice aggiornato: accedi di nuovo") {
 }
 
 // —— listener realtime su /settings
+// —— listener realtime su /settings (unico) ——
 let settingsRef = null;
 function setupSettingsListener() {
   if (settingsRef) return; // evita doppi listener
   settingsRef = database.ref("settings");
-  settingsRef.on("value", snap => {
+  settingsRef.on("value", (snap) => {
     const s = snap.val() || {};
+
+    // Applica impostazioni varie (orari, limiti, ecc.)
     try { applyFirebaseSettings && applyFirebaseSettings(s); } catch {}
 
-    const serverVersion = parseInt(s.code_version || 1, 10);
-    const localVersion  = parseInt(localStorage.getItem(CODE_VERSION_KEY) || "1", 10);
-
-    if (serverVersion > localVersion) {
-      // salva nuova versione e forza blocco per tutti
-      localStorage.setItem(CODE_VERSION_KEY, String(serverVersion));
+    // 1) Kill-switch: cambio codice globale => blocca e forza logout
+    const serverCodeVer = parseInt(s.code_version || 1, 10);
+    const localCodeVer  = parseInt(localStorage.getItem(CODE_VERSION_KEY) || "1", 10);
+    if (serverCodeVer > localCodeVer) {
+      localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
       const msg = s.global_block_message || "Codice aggiornato: accedi di nuovo";
-      forceGlobalLogout(msg);
+      forceGlobalLogout(msg); // già blocca manual login e mostra overlay
+      return; // priorità massima
+    }
+
+    // 2) Ripristino globale: sblocca e torna al login
+    const serverUnblockVer = parseInt(s.session_reset_version || 0, 10);
+    const localUnblockVer  = parseInt(localStorage.getItem(UNBLOCK_VERSION_KEY) || "0", 10);
+    if (serverUnblockVer > localUnblockVer) {
+      // memorizza la nuova versione di “unlock”
+      localStorage.setItem(UNBLOCK_VERSION_KEY, String(serverUnblockVer));
+
+      // sblocca i blocchi persistenti creati dal kill-switch o da scadenze
+      unblockAccess();
+
+      // chiudi eventuale overlay di blocco e mostra il form di login
+      document.getElementById("expiredOverlay")?.classList.add("hidden");
+      document.getElementById("sessionExpired")?.classList.add("hidden");
+      document.getElementById("controlPanel")?.classList.add("hidden");
+      try { showAuthForm(); } catch {}
+
+      // aggiorna UI
+      try { updateDoorVisibility(); } catch {}
+      try { showNotification(s.global_unblock_message || "Sessione ripristinata. Inserisci il codice per accedere."); } catch {}
     }
   });
 }
+
 
 function blockAccess(reason = "Link non più valido", token = null) {
   try {
