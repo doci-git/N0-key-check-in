@@ -610,7 +610,6 @@ function checkCodeVersion() {
 
 function handleCodeChange(newVersion) {
   currentCodeVersion = newVersion;
-
   database
     .ref("settings/secret_code")
     .once("value")
@@ -618,10 +617,13 @@ function handleCodeChange(newVersion) {
       if (codeSnapshot.exists()) {
         CORRECT_CODE = codeSnapshot.val();
         localStorage.setItem("secret_code", CORRECT_CODE);
+        blockAccess("Codice aggiornato: accedi di nuovo");
         resetSessionForNewCode();
+        showSessionExpired();
       }
     });
 }
+
 
 function resetSessionForNewCode() {
   clearStorage("usage_start_time");
@@ -897,16 +899,77 @@ function stopTokenRealtimeListener() {
 //   // setTimeout(() => window.location.replace("expired.html"), 300);
 // }
 
+// function clearManualSession() {
+//   try {
+//     localStorage.removeItem("usage_start_time");
+//     localStorage.removeItem("usage_hash");
+//     localStorage.removeItem("auth_verified");
+//     localStorage.removeItem("auth_timestamp");
+//     sessionStartTime = null;
+//   } catch (e) {
+//     console.error("Errore clearManualSession:", e);
+//   }
+// }
+// —— util per blocco persistente
+// ——— BLOCCO PERSISTENTE DOPO REVOCA/SCADENZA/CAMBIO CODICE ———
 function clearManualSession() {
   try {
     localStorage.removeItem("usage_start_time");
     localStorage.removeItem("usage_hash");
-    localStorage.removeItem("auth_verified");
-    localStorage.removeItem("auth_timestamp");
     sessionStartTime = null;
-  } catch (e) {
-    console.error("Errore clearManualSession:", e);
-  }
+  } catch {}
+}
+
+function blockAccess(reason = "Accesso bloccato", token = null) {
+  try {
+    localStorage.setItem("block_manual_login", "1");
+    localStorage.setItem("blocked_reason", reason);
+    if (token) localStorage.setItem("blocked_token", token);
+  } catch {}
+}
+
+function unblockAccess() {
+  localStorage.removeItem("block_manual_login");
+  localStorage.removeItem("blocked_reason");
+  localStorage.removeItem("blocked_token");
+}
+
+
+// —— logout/overlay globale (vale anche per sessioni a token)
+function forceGlobalLogout(reason = "Codice aggiornato: accedi di nuovo") {
+  // per sicurezza “esci” dalla modalità token così l’overlay può comparire
+  isTokenSession = false;
+  window.isTokenSession = false;
+
+  clearManualSession();
+  const t = (typeof currentTokenId !== "undefined" && currentTokenId) ||
+            new URLSearchParams(location.search).get("token") || null;
+  blockAccess(reason, t);
+
+  try { showTokenError(reason); } catch {}
+  showSessionExpired();          // overlay + pulsanti disabilitati
+  try { stopTokenRealtimeListener && stopTokenRealtimeListener(); } catch {}
+}
+
+// —— listener realtime su /settings
+let settingsRef = null;
+function setupSettingsListener() {
+  if (settingsRef) return; // evita doppi listener
+  settingsRef = database.ref("settings");
+  settingsRef.on("value", snap => {
+    const s = snap.val() || {};
+    try { applyFirebaseSettings && applyFirebaseSettings(s); } catch {}
+
+    const serverVersion = parseInt(s.code_version || 1, 10);
+    const localVersion  = parseInt(localStorage.getItem(CODE_VERSION_KEY) || "1", 10);
+
+    if (serverVersion > localVersion) {
+      // salva nuova versione e forza blocco per tutti
+      localStorage.setItem(CODE_VERSION_KEY, String(serverVersion));
+      const msg = s.global_block_message || "Codice aggiornato: accedi di nuovo";
+      forceGlobalLogout(msg);
+    }
+  });
 }
 
 function blockAccess(reason = "Link non più valido", token = null) {
@@ -1095,13 +1158,14 @@ function startTokenExpirationCheck(expirationTime) {
     //   // per token scaduto, mostriamo messaggi dedicati (overlay manuale non usato)
     //   showNotification("Questo link di accesso è scaduto.", "warning");
     // }
-    if (Date.now() > expirationTime) {
-      clearInterval(checkTokenExpiration);
-      // Blocco duro anche per i token:
-      isTokenSession = false;
-      window.isTokenSession = false;
-      showSessionExpired(); // overlay + pulsanti off
-    }
+   if (Date.now() > expirationTime) {
+     clearInterval(checkTokenExpiration);
+     isTokenSession = false;
+     window.isTokenSession = false;
+     blockAccess("Link scaduto", currentTokenId || null);
+     showSessionExpired(); // overlay + pulsanti off
+   }
+
     
 
 
@@ -1165,56 +1229,40 @@ async function handleCodeSubmit() {
 async function init() {
   console.log("Inizializzazione app.");
 
-  // 1) Carica impostazioni da Firebase e applica subito
+  // Impostazioni da Firebase
   const firebaseSettings = await loadSettingsFromFirebase();
-  if (firebaseSettings) {
-    applyFirebaseSettings(firebaseSettings);
-  }
+  if (firebaseSettings) applyFirebaseSettings(firebaseSettings);
 
-  // 2) Warning su possibili sessioni bloccate (diagnostica)
-  if (isSessionStuck()) {
-    console.warn("Rilevata possibile sessione bloccata");
-  }
+  if (isSessionStuck()) console.warn("Rilevata possibile sessione bloccata");
 
-  // 3) Versioning del codice (come prima)
-  const savedCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
+  const savedCodeVersion = parseInt(localStorage.getItem("code_version")) || 1;
   if (savedCodeVersion < currentCodeVersion) {
-    resetSessionForNewCode();
+    resetSessionForNewCode(); // mantiene il flusso preesistente
   }
 
-  // 4) Event listeners UI
   setupEventListeners();
-
-  // 5) Listener realtime impostazioni + stato connessione Firebase
   setupSettingsListener();
   monitorFirebaseConnection();
 
-  // 6) Applica eventuale BLOCCO persistente (revoca/scadenza) PRIMA di tutto
+  // ——— BLOCCO PERSISTENTE PRIMA DI TUTTO ———
   const isBlocked = localStorage.getItem("block_manual_login") === "1";
   if (isBlocked) {
-    // forza modalità "non token" per permettere l'overlay
     isTokenSession = false;
     window.isTokenSession = false;
     showSessionExpired(); // overlay + pulsanti disabilitati
   }
 
-  // 7) GESTIONE TOKEN — PRIMA della sessione manuale
-  //    (se il link è valido sblocca anche un eventuale blocco precedente)
-  await handleSecureToken();
+  // ——— TOKEN PRIMA DELLA SESSIONE MANUALE ———
+  await handleSecureToken(); // se valido, sblocca; se invalido, rimane bloccato
   setupTokenUI();
 
-  // Se un nuovo token valido è arrivato, rimuovi eventuale blocco persistente
   if (isTokenSession) {
-    localStorage.removeItem("block_manual_login");
-    localStorage.removeItem("blocked_token");
-    localStorage.removeItem("blocked_reason");
+    // token valido: togli eventuali blocchi precedenti
+    unblockAccess();
   }
 
-  // 8) Se NON c'è token-session valida ed è ancora bloccato, NON riaprire la sessione manuale
-  if (!isTokenSession && localStorage.getItem("block_manual_login") === "1") {
-    // Rimani sull'overlay mostrato al punto 6; non mostrare auth/control panel
-  } else {
-    // 9) Sessione manuale (come prima) — solo se non bloccato
+  // ——— SOLO SE NON BLOCCATO E SENZA TOKEN-SESSION: UI manuale ———
+  if (!isTokenSession && localStorage.getItem("block_manual_login") !== "1") {
     const expired = await checkTimeLimit();
     if (!expired) {
       const startTime = getStorage("usage_start_time");
@@ -1229,16 +1277,9 @@ async function init() {
     }
   }
 
-  // 10) UI varie
   updateDoorVisibility();
-
-  // 11) Avvia intervalli periodici (time limit, code version, ecc.)
   setupIntervals();
-
-  // 12) UX: disabilita click destro
   document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-  // 13) Aggiorna info orario check-in
   updateCheckinTimeDisplay();
 }
 

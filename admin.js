@@ -258,25 +258,25 @@ async function updateSecretCode() {
   const newCode = qs("newCode").value.trim();
   if (!newCode) return alert("Inserisci un codice valido");
 
-  const ok = await saveSettingToFirebase("secret_code", newCode);
-  if (!ok) return alert("Errore nel salvataggio del nuovo codice.");
+  try {
+    await database.ref("settings").update({
+      secret_code: newCode,
+      code_version: firebase.database.ServerValue.increment(1),
+      global_block_message: "Codice aggiornato: accedi di nuovo.", // opzionale
+    });
 
-  localStorage.setItem("secret_code", newCode);
+    // cache locale (facoltativa)
+    localStorage.setItem("secret_code", newCode);
 
-  // bump versione codice (come nel tuo originale)
-  const currentVersion = parseInt(localStorage.getItem("code_version")) || 1;
-  const newVersion = currentVersion + 1;
-  localStorage.setItem("code_version", newVersion.toString());
-  await saveSettingToFirebase("code_version", newVersion);
-
-  const timestamp = Date.now().toString();
-  localStorage.setItem("last_code_update", timestamp);
-  await saveSettingToFirebase("last_code_update", timestamp);
-
-  qs("currentCode").value = newCode;
-  qs("newCode").value = "";
-  alert("Codice aggiornato! Gli utenti dovranno usare il nuovo codice.");
+    qs("currentCode").value = newCode;
+    qs("newCode").value = "";
+    alert("Codice aggiornato! Gli utenti verranno scollegati.");
+  } catch (e) {
+    console.error("Errore nel salvataggio del nuovo codice:", e);
+    alert("Errore nel salvataggio del nuovo codice.");
+  }
 }
+
 
 // =============================================
 // GESTIONE IMPOSTAZIONI DI SISTEMA
