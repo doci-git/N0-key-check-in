@@ -271,7 +271,6 @@
         qs("expiredOverlay")?.classList.add("hidden");
         qs("sessionExpired")?.classList.add("hidden");
         qs("controlPanel")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
         showAuthForm();
         updateDoorVisibility();
         showNotification(
@@ -279,16 +278,7 @@
             "Sessione ripristinata. Inserisci il codice per accedere."
         );
       }
-      // dentro setupSettingsListener(), ramo "serverUnblockVer > localUnblockVer"
-      const ov = qs("expiredOverlay");
-      if (ov) {
-        ov.classList.add("hidden");
-        ov.style.display = "none"; // <— aggiungi
-        ov.style.pointerEvents = "none"; // <— opzionale
-      }
-      qs("sessionExpired")?.classList.add("hidden");
-      qs("controlPanel")?.classList.add("hidden");
-      showAuthForm();
+      
     });
   }
 
