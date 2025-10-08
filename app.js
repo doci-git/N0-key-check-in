@@ -342,33 +342,86 @@
         ${message}
       </div>`;
   }
+function showSessionExpired() {
+  if (isTokenSession) return; // overlay solo per sessioni manuali
+  if (timeCheckInterval) clearInterval(timeCheckInterval);
+  if (codeCheckInterval) clearInterval(codeCheckInterval);
 
-  function showSessionExpired() {
-    if (isTokenSession) return; // overlay solo per sessioni manuali
-    if (timeCheckInterval) clearInterval(timeCheckInterval);
-    if (codeCheckInterval) clearInterval(codeCheckInterval);
+  // Mostra overlay di sessione scaduta / nasconde controlli
+  qs("expiredOverlay")?.classList.remove("hidden");
+  qs("controlPanel")?.classList.add("hidden");
+  qs("sessionExpired")?.classList.remove("hidden");
+  qs("test2") && (qs("test2").style.display = "none");
 
-    qs("expiredOverlay")?.classList.remove("hidden");
-    qs("controlPanel")?.classList.add("hidden");
-    qs("sessionExpired")?.classList.remove("hidden");
-    qs("test2") && (qs("test2").style.display = "none");
-
-    DEVICES.forEach((device) => {
-      const btn = qs(device.button_id);
-      if (btn) {
-        btn.disabled = true;
-        btn.classList.add("btn-error");
-      }
-    });
-
-    const securityStatus = qs("securityStatus");
-    if (securityStatus) {
-      securityStatus.textContent = "Scaduta";
-      securityStatus.style.color = "var(--error)";
+  // Disabilita i bottoni porta
+  DEVICES.forEach((device) => {
+    const btn = qs(device.button_id);
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add("btn-error");
     }
+  });
 
-    sessionStartTime = null;
+  // Aggiorna stato sicurezza
+  const securityStatus = qs("securityStatus");
+  if (securityStatus) {
+    securityStatus.textContent = "Scaduta";
+    securityStatus.style.color = "var(--error)";
   }
+
+  sessionStartTime = null;
+
+  // ===================== AGGIUNTA: ascolto reset da remoto =====================
+  // 1) Pulisce eventuali listener precedenti su questa chiave
+  try {
+    database.ref("settings/session_reset_version").off();
+  } catch (e) {}
+
+  // 2) Listener realtime: se l'admin incrementa session_reset_version, togli overlay
+  database.ref("settings/session_reset_version").on("value", (snap) => {
+    const serverVer = parseInt(snap.val() || "0", 10);
+    const localVer = parseInt(
+      localStorage.getItem("UNBLOCK_VERSION_KEY") || "0",
+      10
+    );
+    if (serverVer > localVer) {
+      localStorage.setItem("UNBLOCK_VERSION_KEY", String(serverVer));
+      removeOverlayAndResetUI(
+        "Sessione ripristinata da remoto. Inserisci il codice per accedere."
+      );
+    }
+  });
+
+  // 3) Se hai il polling di sblocco, assicurati che sia attivo anche in stato "scaduto"
+  if (typeof startUnblockPolling === "function") {
+    startUnblockPolling();
+  }
+}
+
+
+function removeOverlayAndResetUI(reason = null) {
+  try {
+    // Sblocca eventuali flag locali
+    unblockAccess(); // funzione già presente nel tuo file
+
+    // Nasconde overlay e messaggi di "scaduto"
+    const expiredOverlay = document.getElementById("expiredOverlay");
+    const sessionExpired = document.getElementById("sessionExpired");
+    const controlPanel = document.getElementById("controlPanel");
+
+    expiredOverlay && expiredOverlay.classList.add("hidden");
+    sessionExpired && sessionExpired.classList.add("hidden");
+    controlPanel && controlPanel.classList.add("hidden"); // torna alla schermata login
+
+    // Notifica opzionale
+    if (reason && typeof showNotification === "function") {
+      showNotification(reason);
+    }
+  } catch (e) {
+    console.error("removeOverlayAndResetUI error:", e);
+  }
+}
+
 
   function isSessionStuck() {
     try {
