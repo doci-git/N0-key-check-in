@@ -21,27 +21,24 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   </head>
   <body>
-   <body>
     <div id="loginModal" class="login-modal">
-        <div class="login-container">
-            
-            <h2><i class="fas fa-lock"></i> Accesso Amministratore</h2>
-            <p>Inserisci la password per accedere al pannello di controllo</p>
-           <div id="loginModal" class="login-modal">
-    <div class="login-container">
+      <div class="login-container">
         <h2><i class="fas fa-lock"></i> Accesso Amministratore</h2>
         <p>Inserisci la password per accedere al pannello di controllo</p>
-        <input type="password" id="adminPassword" class="login-input" placeholder="Password" autocomplete="off">
+        <input
+          type="password"
+          id="adminPassword"
+          class="login-input"
+          placeholder="Password"
+          autocomplete="off"
+        />
         <div id="loginError" class="login-error">
-            <i class="fas fa-exclamation-circle"></i> Password errata
+          <i class="fas fa-exclamation-circle"></i> Password errata
         </div>
         <button id="btnLogin" class="btn">
-            <i class="fas fa-sign-in-alt"></i> Accedi
+          <i class="fas fa-sign-in-alt"></i> Accedi
         </button>
-    </div>
-</div>
-
-        </div>
+      </div>
     </div>
 
     <div class="admin-container" id="adminContainer">
@@ -318,6 +315,6 @@
         </div>
     </div>
 
-    <script src="admin.js?v=3.0"></script>
+    <script defer src="admin.js?v=3.0"></script>
   </body>
 </html>
