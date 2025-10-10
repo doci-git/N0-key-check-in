@@ -18,7 +18,7 @@
   };
 
   // Valori di fallback (possono essere sovrascritti da settings Firebase)
-  let ADMIN_PASSWORD = "1122"; // TODO: spostare su settings/admin_password
+  let ADMIN_PASSWORD = "";
   const SHELLY_API_URL =
     "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
 
@@ -1150,9 +1150,9 @@
         if (!confirm("Sbloccare e riportare al login tutti i client?")) return;
         try {
           await database.ref("settings").update({
-            session_reset_version: firebase.database.ServerValue.increment(1),
+            session_reset_version: Date.now(),
             global_unblock_message:
-              "Sessioni ripristinate dallâ€™amministratore 'refresh the page'",
+            "Sessioni ripristinate dall'Amministratore — ricarica la pagina",
           });
           alertOnce("Tutte le sessioni sono state ripristinate.");
         } catch (e) {
@@ -1230,3 +1230,5 @@
     showResetError,
   });
 })();
+
+
