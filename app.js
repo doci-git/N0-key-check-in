@@ -20,7 +20,7 @@
     "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
   const SECRET_KEY = "musart_secret_123_fixed_key";
   const CODE_VERSION_KEY = "code_version";
-  const KEEP_TOKEN_IN_URL = false; // rimuovi il token dall'URL dopo la verifica
+  const KEEP_TOKEN_IN_URL = true; // mantieni il token nell'URL dopo la verifica
   const UNBLOCK_VERSION_KEY = "unblock_version";
 
   // Configurazione dispositivi Shelly (immutabile)
