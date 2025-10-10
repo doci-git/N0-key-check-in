@@ -859,6 +859,7 @@
       new URLSearchParams(location.search).get("token") ||
       null;
     blockAccess(reason, t);
+    try { if (t) localStorage.removeItem(`token_ok_${t}`); } catch {}
     try {
       showTokenError(reason);
     } catch {}
@@ -875,6 +876,7 @@
       new URLSearchParams(location.search).get("token") ||
       null;
     blockAccess(reason, t);
+    try { if (t) localStorage.removeItem(`token_ok_${t}`); } catch {}
     try {
       showTokenError(reason);
     } catch {}
@@ -1028,6 +1030,14 @@
       alert("Codice errato! Riprova.");
       return;
     }
+    // Se siamo in sessione token, persisti validazione e mostra pannello
+    if (isTokenSession) {
+      try {
+        if (currentTokenId) localStorage.setItem(`token_ok_${currentTokenId}`, "1");
+      } catch {}
+      showControlPanel();
+      return;
+    }
     await performManualLogin();
   }
 
@@ -1064,6 +1074,17 @@
     await handleSecureToken();
     setupTokenUI();
     if (isTokenSession) unblockAccess();
+
+    // Auto-accesso se token già validato su questo dispositivo
+    if (isTokenSession) {
+      const tok =
+        currentTokenId || new URLSearchParams(location.search).get("token");
+      try {
+        if (tok && localStorage.getItem(`token_ok_${tok}`) === "1") {
+          showControlPanel();
+        }
+      } catch {}
+    }
 
     // Se non bloccato e senza token: UI manuale
     if (!isTokenSession && localStorage.getItem("block_manual_login") !== "1") {
