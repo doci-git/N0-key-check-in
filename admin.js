@@ -75,6 +75,12 @@
     firebase.initializeApp(firebaseConfig);
   }
   const database = firebase.database();
+  // Rendi la sessione persistente tra i reload del browser
+  try {
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+  } catch (e) {
+    console.warn("Impossibile impostare la persistenza Auth:", e);
+  }
 
   // =============================================
   // UTILS
@@ -117,33 +123,43 @@
   }
 
   // =============================================
-  // AUTENTICAZIONE ADMIN (ibrida: flag + hash sessione)
+  // AUTENTICAZIONE ADMIN (Firebase Email/Password)
   // =============================================
+  const allowedAdminEmails = new Set();
+
+  async function loadAllowedAdminEmails() {
+    try {
+      const snap = await database.ref("settings/admin_emails").once("value");
+      const val = snap?.val();
+      allowedAdminEmails.clear();
+      if (Array.isArray(val)) {
+        val.filter(Boolean).forEach((e) => allowedAdminEmails.add(String(e).toLowerCase()));
+      } else if (val && typeof val === "object") {
+        Object.keys(val).forEach((k) => {
+          if (val[k]) allowedAdminEmails.add(String(k).toLowerCase());
+        });
+      }
+    } catch (e) {
+      console.warn("Impossibile caricare admin_emails da Firebase:", e);
+    }
+  }
+
+  function isCurrentUserAdmin() {
+    const user = firebase.auth().currentUser;
+    if (!user) return false;
+    if (allowedAdminEmails.size === 0) {
+      console.warn("Nessuna allowlist admin configurata: consento l'accesso a qualsiasi utente autenticato");
+      return true;
+    }
+    return allowedAdminEmails.has(String(user.email || "").toLowerCase());
+  }
+
   function isAdminSessionValid() {
-    const flag = localStorage.getItem("adminAuthenticated") === "true";
-    // const ts = sessionStorage.getItem("admin_session_ts");
-    // const h = sessionStorage.getItem("admin_session_hash");
-     const ts = localStorage.getItem("admin_session_ts");
-     const h = localStorage.getItem("admin_session_hash");
-    return flag && !!ts && !!h;
+    return !!firebase.auth().currentUser && isCurrentUserAdmin();
   }
 
-  async function establishAdminSession() {
-    const ts = Date.now().toString();
-    const hash = await sha256(ts + ADMIN_SECRET);
-      localStorage.setItem("admin_session_ts", ts);
-      localStorage.setItem("admin_session_hash", hash);
-      localStorage.setItem("adminAuthenticated", "true");
-  }
-
-  function clearAdminSession() {
-    // sessionStorage.removeItem("admin_session_ts");
-    // sessionStorage.removeItem("admin_session_hash");
-    // localStorage.removeItem("adminAuthenticated");
-     localStorage.removeItem("admin_persist_ts");
-     localStorage.removeItem("admin_persist_hash");
-     localStorage.removeItem("admin_persist_exp");
-     localStorage.removeItem("adminAuthenticated");
+  async function clearAdminSession() {
+    try { await firebase.auth().signOut(); } catch {}
   }
 
   // =============================================
@@ -166,30 +182,38 @@
   }
 
   async function handleLogin() {
+    const emailEl = qs("adminEmail");
     const pwEl = qs("adminPassword");
+    const email = (emailEl?.value || "").trim();
     const password = (pwEl?.value || "").trim();
     const loginError = qs("loginError");
     const loginModal = qs("loginModal");
 
-    // Consenti override da Firebase settings (admin_password)
-    try {
-      const snap = await database.ref("settings/admin_password").once("value");
-      const remotePw = snap?.val();
-      if (typeof remotePw === "string" && remotePw.length > 0) {
-        ADMIN_PASSWORD = remotePw;
-      }
-    } catch {
-      /* ignora se non raggiungibile */
+    if (loginError) loginError.style.display = "none";
+    if (!email || !password) {
+      if (loginError) { loginError.textContent = "Inserisci email e password"; loginError.style.display = "block"; }
+      return;
     }
-
-    if (password === ADMIN_PASSWORD) {
-      await establishAdminSession();
-      showAdminInterface();
-    } else {
-      if (loginError) loginError.style.display = "block";
-      if (pwEl) {
-        pwEl.value = "";
-        pwEl.focus();
+    try {
+      await firebase.auth().signInWithEmailAndPassword(email, password);
+      // onAuthStateChanged gestira l'UI
+    } catch (e) {
+      console.error("Firebase auth error:", e?.code, e?.message);
+      const map = {
+        "auth/invalid-email": "Email non valida",
+        "auth/user-disabled": "Utente disabilitato",
+        "auth/user-not-found": "Email non registrata",
+        "auth/wrong-password": "Password errata",
+        "auth/operation-not-allowed": "Metodo Email/Password non abilitato nelle impostazioni Firebase",
+        "auth/invalid-api-key": "API key non valida o progetto errato",
+        "auth/network-request-failed": "Errore di rete: controlla la connessione",
+        "auth/too-many-requests": "Troppi tentativi: riprova piu tardi",
+        "auth/internal-error": "Errore interno: riprova",
+      };
+      const friendly = map[e?.code] || (e?.message || "Errore sconosciuto");
+      if (loginError) {
+        loginError.textContent = friendly;
+        loginError.style.display = "block";
       }
       if (loginModal) {
         loginModal.classList.add("shake");
@@ -1064,31 +1088,36 @@
   // =============================================
   // BINDING EVENTI DOPO DOMContentLoaded
   // =============================================
-  document.addEventListener("DOMContentLoaded", () => {
-    // Avvio UI corretta
-    if (isAdminSessionValid()) {
-      showAdminInterface();
-    } else {
-      showLoginModal();
-    }
+  document.addEventListener("DOMContentLoaded", async () => {
+    await loadAllowedAdminEmails();
 
-    // Focus campo password se presente
+    // Auth state listener
+    firebase.auth().onAuthStateChanged(async (user) => {
+      if (user && isCurrentUserAdmin()) {
+        showAdminInterface();
+      } else {
+        if (user && !isCurrentUserAdmin()) {
+          console.warn("Utente non autorizzato", user.email);
+          try { await firebase.auth().signOut(); } catch {}
+        }
+        showLoginModal();
+      }
+    });
+
+    // Focus campo email/password
+    const emailEl = qs("adminEmail");
     const pw = qs("adminPassword");
-    if (pw) pw.focus();
+    if (emailEl) emailEl.focus();
 
     // Listener login + invio
     on("btnLogin", "click", handleLogin);
-    const pwInput = qs("adminPassword");
-    if (pwInput)
-      pwInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") handleLogin();
-      });
+    if (pw) pw.addEventListener("keypress", (e) => { if (e.key === "Enter") handleLogin(); });
+    if (emailEl) emailEl.addEventListener("keypress", (e) => { if (e.key === "Enter") handleLogin(); });
 
-    // Logout opzionale
     const logoutBtn = qs("btnLogout");
     if (logoutBtn)
-      logoutBtn.addEventListener("click", () => {
-        clearAdminSession();
+      logoutBtn.addEventListener("click", async () => {
+        await clearAdminSession();
         showLoginModal();
       });
 
@@ -1149,7 +1178,6 @@
     sha256,
     // Sessione/admin
     isAdminSessionValid,
-    establishAdminSession,
     clearAdminSession,
     showAdminInterface,
     showLoginModal,
