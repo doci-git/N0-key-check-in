@@ -121,23 +121,29 @@
   // =============================================
   function isAdminSessionValid() {
     const flag = localStorage.getItem("adminAuthenticated") === "true";
-    const ts = sessionStorage.getItem("admin_session_ts");
-    const h = sessionStorage.getItem("admin_session_hash");
+    // const ts = sessionStorage.getItem("admin_session_ts");
+    // const h = sessionStorage.getItem("admin_session_hash");
+     const ts = localStorage.getItem("admin_session_ts");
+     const h = localStorage.getItem("admin_session_hash");
     return flag && !!ts && !!h;
   }
 
   async function establishAdminSession() {
     const ts = Date.now().toString();
     const hash = await sha256(ts + ADMIN_SECRET);
-    sessionStorage.setItem("admin_session_ts", ts);
-    sessionStorage.setItem("admin_session_hash", hash);
-    localStorage.setItem("adminAuthenticated", "true");
+      localStorage.setItem("admin_session_ts", ts);
+      localStorage.setItem("admin_session_hash", hash);
+      localStorage.setItem("adminAuthenticated", "true");
   }
 
   function clearAdminSession() {
-    sessionStorage.removeItem("admin_session_ts");
-    sessionStorage.removeItem("admin_session_hash");
-    localStorage.removeItem("adminAuthenticated");
+    // sessionStorage.removeItem("admin_session_ts");
+    // sessionStorage.removeItem("admin_session_hash");
+    // localStorage.removeItem("adminAuthenticated");
+     localStorage.removeItem("admin_persist_ts");
+     localStorage.removeItem("admin_persist_hash");
+     localStorage.removeItem("admin_persist_exp");
+     localStorage.removeItem("adminAuthenticated");
   }
 
   // =============================================
