@@ -783,6 +783,8 @@
         .once("value");
       if (!snapshot.exists()) {
         showTokenError("Token non valido");
+        try { blockAccess("Token non valido", token); } catch {}
+        showSessionExpired();
         maybeCleanUrl();
         return false;
       }
@@ -791,6 +793,8 @@
       const isValid = validateSecureToken(linkData);
       if (!isValid.valid) {
         showTokenError(isValid.reason);
+        try { blockAccess(isValid.reason || "Accesso bloccato", token); } catch {}
+        showSessionExpired();
         maybeCleanUrl();
         return false;
       }
@@ -814,6 +818,8 @@
     } catch (error) {
       console.error("Errore nella verifica del token:", error);
       showTokenError("Errore di verifica");
+      try { blockAccess("Errore di verifica", token); } catch {}
+      showSessionExpired();
       maybeCleanUrl();
       return false;
     }
