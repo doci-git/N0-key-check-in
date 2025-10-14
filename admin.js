@@ -40,7 +40,7 @@
     {
       id: "34945478d595",
       auth_key:
-        "",
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenAptDoor",
       status_id: "aptDoorStatus",
       status_text_id: "aptDoorStatusText",
@@ -50,7 +50,7 @@
     {
       id: "3494547ab161",
       auth_key:
-        "",
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenExtraDoor1",
       status_id: "extraDoor1Status",
       status_text_id: "extraDoor1StatusText",
