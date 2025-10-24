@@ -1,21 +1,20 @@
 (() => {
-  "use strict";
+  ("use strict");
 
   // =============================================
   // CONFIGURAZIONE E INIZIALIZZAZIONE
   // =============================================
+  // Your web app's Firebase configuration
   const firebaseConfig = {
-    apiKey: "AIzaSyCuy3Sak96soCla7b5Yb5wmkdVfMqAXmok",
-    authDomain: "check-in-4e0e9.firebaseapp.com",
+    apiKey: "AIzaSyD8oQsvmn7nyV2nYnExD-xw6gchwRJ0Bog",
+    authDomain: "multi-client-77378.firebaseapp.com",
     databaseURL:
-      "https://check-in-4e0e9-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "check-in-4e0e9",
-    storageBucket: "check-in-4e0e9.firebasestorage.app",
-    messagingSenderId: "723880990177",
-    appId: "1:723880990177:web:f002733b2cc2e50d172ea0",
-    measurementId: "G-H97GB9L4F5",
+      "https://multi-client-77378-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "multi-client-77378",
+    storageBucket: "multi-client-77378.firebasestorage.app",
+    messagingSenderId: "654507957917",
+    appId: "1:654507957917:web:3be18327d2951774113e74",
   };
-
   const BASE_URL_SET =
     "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
   const SECRET_KEY = "musart_secret_123_fixed_key";
@@ -27,21 +26,24 @@
   const DEVICES = Object.freeze([
     {
       id: "e4b063f0c38c",
-      auth_key:"MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+      auth_key:
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       storage_key: "clicks_MainDoor",
       button_id: "MainDoor",
       visible: true,
     },
     {
       id: "34945478d595",
-      auth_key:"MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+      auth_key:
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       storage_key: "clicks_AptDoor",
       button_id: "AptDoor",
       visible: true,
     },
     {
       id: "3494547ab161",
-      auth_key:"MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+      auth_key:
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       storage_key: "clicks_ExtraDoor1",
       button_id: "ExtraDoor1",
       visible: false,
@@ -275,7 +277,6 @@
             "Sessione ripristinata. Inserisci il codice per accedere."
         );
       }
-      
     });
   }
 
@@ -780,7 +781,9 @@
         .once("value");
       if (!snapshot.exists()) {
         showTokenError("Token non valido");
-        try { blockAccess("Token non valido", token); } catch {}
+        try {
+          blockAccess("Token non valido", token);
+        } catch {}
         showSessionExpired();
         maybeCleanUrl();
         return false;
@@ -790,7 +793,9 @@
       const isValid = validateSecureToken(linkData);
       if (!isValid.valid) {
         showTokenError(isValid.reason);
-        try { blockAccess(isValid.reason || "Accesso bloccato", token); } catch {}
+        try {
+          blockAccess(isValid.reason || "Accesso bloccato", token);
+        } catch {}
         showSessionExpired();
         maybeCleanUrl();
         return false;
@@ -815,7 +820,9 @@
     } catch (error) {
       console.error("Errore nella verifica del token:", error);
       showTokenError("Errore di verifica");
-      try { blockAccess("Errore di verifica", token); } catch {}
+      try {
+        blockAccess("Errore di verifica", token);
+      } catch {}
       showSessionExpired();
       maybeCleanUrl();
       return false;
@@ -862,7 +869,9 @@
       new URLSearchParams(location.search).get("token") ||
       null;
     blockAccess(reason, t);
-    try { if (t) localStorage.removeItem(`token_ok_${t}`); } catch {}
+    try {
+      if (t) localStorage.removeItem(`token_ok_${t}`);
+    } catch {}
     try {
       showTokenError(reason);
     } catch {}
@@ -879,7 +888,9 @@
       new URLSearchParams(location.search).get("token") ||
       null;
     blockAccess(reason, t);
-    try { if (t) localStorage.removeItem(`token_ok_${t}`); } catch {}
+    try {
+      if (t) localStorage.removeItem(`token_ok_${t}`);
+    } catch {}
     try {
       showTokenError(reason);
     } catch {}
@@ -1036,7 +1047,8 @@
     // Se siamo in sessione token, persisti validazione e mostra pannello
     if (isTokenSession) {
       try {
-        if (currentTokenId) localStorage.setItem(`token_ok_${currentTokenId}`, "1");
+        if (currentTokenId)
+          localStorage.setItem(`token_ok_${currentTokenId}`, "1");
       } catch {}
       showControlPanel();
       return;

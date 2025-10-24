@@ -1,22 +1,21 @@
 ﻿
 (() => {
-  "use strict";
+  ("use strict");
 
   // =============================================
   // CONFIGURAZIONE E INIZIALIZZAZIONE
   // =============================================
+  // Your web app's Firebase configuration
   const firebaseConfig = {
-    apiKey: "AIzaSyCuy3Sak96soCla7b5Yb5wmkdVfMqAXmok",
-    authDomain: "check-in-4e0e9.firebaseapp.com",
+    apiKey: "AIzaSyD8oQsvmn7nyV2nYnExD-xw6gchwRJ0Bog",
+    authDomain: "multi-client-77378.firebaseapp.com",
     databaseURL:
-      "https://check-in-4e0e9-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "check-in-4e0e9",
-    storageBucket: "check-in-4e0e9.firebasestorage.app",
-    messagingSenderId: "723880990177",
-    appId: "1:723880990177:web:f002733b2cc2e50d172ea0",
-    measurementId: "G-H97GB9L4F5",
+      "https://multi-client-77378-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "multi-client-77378",
+    storageBucket: "multi-client-77378.firebasestorage.app",
+    messagingSenderId: "654507957917",
+    appId: "1:654507957917:web:3be18327d2951774113e74",
   };
-
   // Valori di fallback (possono essere sovrascritti da settings Firebase)
   let ADMIN_PASSWORD = "";
   const SHELLY_API_URL =
@@ -29,8 +28,7 @@
   const ADMIN_DEVICES = Object.freeze([
     {
       id: "e4b063f0c38c",
-      auth_key:
-        "",
+      auth_key: "",
       button_id: "btnOpenMainDoor",
       status_id: "mainDoorStatus",
       status_text_id: "mainDoorStatusText",
@@ -39,7 +37,8 @@
     },
     {
       id: "34945478d595",
-      auth_key:"MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+      auth_key:
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenAptDoor",
       status_id: "aptDoorStatus",
       status_text_id: "aptDoorStatusText",
@@ -48,7 +47,8 @@
     },
     {
       id: "3494547ab161",
-      auth_key:"MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
+      auth_key:
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenExtraDoor1",
       status_id: "extraDoor1Status",
       status_text_id: "extraDoor1StatusText",
@@ -131,7 +131,9 @@
       const val = snap?.val();
       allowedAdminEmails.clear();
       if (Array.isArray(val)) {
-        val.filter(Boolean).forEach((e) => allowedAdminEmails.add(String(e).toLowerCase()));
+        val
+          .filter(Boolean)
+          .forEach((e) => allowedAdminEmails.add(String(e).toLowerCase()));
       } else if (val && typeof val === "object") {
         Object.keys(val).forEach((k) => {
           if (val[k]) allowedAdminEmails.add(String(k).toLowerCase());
@@ -146,7 +148,9 @@
     const user = firebase.auth().currentUser;
     if (!user) return false;
     if (allowedAdminEmails.size === 0) {
-      console.warn("Nessuna allowlist admin configurata: consento l'accesso a qualsiasi utente autenticato");
+      console.warn(
+        "Nessuna allowlist admin configurata: consento l'accesso a qualsiasi utente autenticato"
+      );
       return true;
     }
     return allowedAdminEmails.has(String(user.email || "").toLowerCase());
@@ -157,7 +161,9 @@
   }
 
   async function clearAdminSession() {
-    try { await firebase.auth().signOut(); } catch {}
+    try {
+      await firebase.auth().signOut();
+    } catch {}
   }
 
   // =============================================
@@ -189,7 +195,10 @@
 
     if (loginError) loginError.style.display = "none";
     if (!email || !password) {
-      if (loginError) { loginError.textContent = "Inserisci email e password"; loginError.style.display = "block"; }
+      if (loginError) {
+        loginError.textContent = "Inserisci email e password";
+        loginError.style.display = "block";
+      }
       return;
     }
     try {
@@ -202,13 +211,15 @@
         "auth/user-disabled": "Utente disabilitato",
         "auth/user-not-found": "Email non registrata",
         "auth/wrong-password": "Password errata",
-        "auth/operation-not-allowed": "Metodo Email/Password non abilitato nelle impostazioni Firebase",
+        "auth/operation-not-allowed":
+          "Metodo Email/Password non abilitato nelle impostazioni Firebase",
         "auth/invalid-api-key": "API key non valida o progetto errato",
-        "auth/network-request-failed": "Errore di rete: controlla la connessione",
+        "auth/network-request-failed":
+          "Errore di rete: controlla la connessione",
         "auth/too-many-requests": "Troppi tentativi: riprova piu tardi",
         "auth/internal-error": "Errore interno: riprova",
       };
-      const friendly = map[e?.code] || (e?.message || "Errore sconosciuto");
+      const friendly = map[e?.code] || e?.message || "Errore sconosciuto";
       if (loginError) {
         loginError.textContent = friendly;
         loginError.style.display = "block";
@@ -1096,7 +1107,9 @@
       } else {
         if (user && !isCurrentUserAdmin()) {
           console.warn("Utente non autorizzato", user.email);
-          try { await firebase.auth().signOut(); } catch {}
+          try {
+            await firebase.auth().signOut();
+          } catch {}
         }
         showLoginModal();
       }
@@ -1109,8 +1122,14 @@
 
     // Listener login + invio
     on("btnLogin", "click", handleLogin);
-    if (pw) pw.addEventListener("keypress", (e) => { if (e.key === "Enter") handleLogin(); });
-    if (emailEl) emailEl.addEventListener("keypress", (e) => { if (e.key === "Enter") handleLogin(); });
+    if (pw)
+      pw.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") handleLogin();
+      });
+    if (emailEl)
+      emailEl.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") handleLogin();
+      });
 
     const logoutBtn = qs("btnLogout");
     if (logoutBtn)
@@ -1150,7 +1169,7 @@
           await database.ref("settings").update({
             session_reset_version: Date.now(),
             global_unblock_message:
-            "Sessioni ripristinate dall'Amministratore � ricarica la pagina",
+              "Sessioni ripristinate dall'Amministratore � ricarica la pagina",
           });
           alertOnce("Tutte le sessioni sono state ripristinate.");
         } catch (e) {
