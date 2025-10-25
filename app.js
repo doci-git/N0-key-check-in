@@ -81,6 +81,11 @@
   let sessionStartTime = null;
   let currentDevice = null;
 
+  // Tentativi errati e lockout
+  let MAX_LOGIN_ATTEMPTS =
+    parseInt(localStorage.getItem("max_login_attempts")) || 5;
+  let LOCKOUT_MINUTES = parseInt(localStorage.getItem("lockout_minutes")) || 1;
+
   // Intervalli/listener
   let timeCheckInterval = null;
   let codeCheckInterval = null;
@@ -221,6 +226,17 @@
       CORRECT_CODE = settings.secret_code;
       localStorage.setItem("secret_code", settings.secret_code);
     }
+    if (settings?.max_login_attempts) {
+      MAX_LOGIN_ATTEMPTS = parseInt(settings.max_login_attempts, 10);
+      localStorage.setItem(
+        "max_login_attempts",
+        String(MAX_LOGIN_ATTEMPTS)
+      );
+    }
+    if (settings?.lockout_minutes) {
+      LOCKOUT_MINUTES = parseInt(settings.lockout_minutes, 10);
+      localStorage.setItem("lockout_minutes", String(LOCKOUT_MINUTES));
+    }
     if (settings?.max_clicks) {
       MAX_CLICKS = parseInt(settings.max_clicks, 10);
       localStorage.setItem("max_clicks", settings.max_clicks);
@@ -289,6 +305,9 @@
       if (serverUnblockVer > localUnblockVer) {
         localStorage.setItem(UNBLOCK_VERSION_KEY, String(serverUnblockVer));
         unblockAccess();
+        // cancella eventuale lockout locale e contatore tentativi
+        localStorage.removeItem("login_lock_until");
+        localStorage.removeItem("login_attempts");
         qs("expiredOverlay")?.classList.add("hidden");
         qs("sessionExpired")?.classList.add("hidden");
         qs("controlPanel")?.classList.add("hidden");
@@ -298,6 +317,7 @@
           s.global_unblock_message ||
             "Sessione ripristinata. Inserisci il codice per accedere."
         );
+        updateLockUI();
       }
     });
   }
@@ -1187,6 +1207,95 @@
   // =============================================
   // AUTENTICAZIONE
   // =============================================
+  function isLoginLocked() {
+    try {
+      const until = parseInt(localStorage.getItem("login_lock_until") || "0", 10);
+      if (!Number.isFinite(until) || until <= 0) return false;
+      if (Date.now() < until) return true;
+      // lock scaduto -> pulizia
+      localStorage.removeItem("login_lock_until");
+      localStorage.removeItem("login_attempts");
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  function secondsToHhMmSs(sec) {
+    const s = Math.max(0, Math.floor(sec));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const r = s % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(r).padStart(2, "0")}s`;
+    return `${String(m).padStart(2, "0")}m ${String(r).padStart(2, "0")}s`;
+  }
+
+  function updateLockUI() {
+    const input = qs("authCode");
+    const btn = qs("btnCheckCode");
+    const existing = document.getElementById("lockNotice");
+    const locked = isLoginLocked();
+    if (locked) {
+      if (input) input.disabled = true;
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add("btn-error");
+      }
+      // crea/aggiorna messaggio lock con countdown
+      let notice = existing;
+      if (!notice && input?.parentElement) {
+        notice = document.createElement("div");
+        notice.id = "lockNotice";
+        notice.style.cssText =
+          "margin-top:10px;color:#ff5a5f;font-weight:600;";
+        input.parentElement.insertAdjacentElement("afterend", notice);
+      }
+      if (notice) {
+        const until = parseInt(
+          localStorage.getItem("login_lock_until") || "0",
+          10
+        );
+        const remainingSec = Math.max(0, Math.floor((until - Date.now()) / 1000));
+        notice.innerHTML =
+          `<i class="fas fa-lock"></i> Too many incorrect attempts. Try again in ${secondsToHhMmSs(remainingSec)}.`;
+      }
+    } else {
+      if (input) input.disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("btn-error");
+      }
+      if (existing) existing.remove();
+    }
+  }
+
+  function incrementFailedAttempt() {
+    try {
+      const attempts = parseInt(localStorage.getItem("login_attempts") || "0", 10) + 1;
+      localStorage.setItem("login_attempts", String(attempts));
+      const left = Math.max(0, MAX_LOGIN_ATTEMPTS - attempts);
+      if (attempts >= MAX_LOGIN_ATTEMPTS) {
+        const until = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
+        localStorage.setItem("login_lock_until", String(until));
+        showNotification(
+          `Too many failed attempts. Page locked for ${LOCKOUT_MINUTES} minutes`,
+          "error"
+        );
+        updateLockUI();
+      } else {
+        showNotification(`Wrong code. Attempts left: ${left}`, "warning");
+      }
+    } catch (e) {
+      console.warn("Impossibile incrementare i tentativi:", e);
+    }
+  }
+
+  function resetFailedAttempts() {
+    try {
+      localStorage.removeItem("login_attempts");
+      // non toccare eventuale lock attivo
+    } catch {}
+  }
   async function performManualLogin() {
     isTokenSession = false;
     window.isTokenSession = false;
@@ -1210,17 +1319,29 @@
   }
 
   async function handleCodeSubmit() {
+    // blocco immediato se lock attivo
+    if (isLoginLocked()) {
+      updateLockUI();
+      return;
+    }
     const codeInput = qs("authCode");
     const insertedCode = (codeInput?.value || "").trim();
     let expectedCode = CORRECT_CODE;
+
+    // Non contare i tentativi a vuoto
+    if (!insertedCode) {
+      showNotification("Please enter the access code", "warning");
+      return;
+    }
 
     if (isTokenSession && currentTokenCustomCode)
       expectedCode = currentTokenCustomCode;
 
     if (insertedCode !== expectedCode) {
-      alert("Codice errato! Riprova.");
+      incrementFailedAttempt();
       return;
     }
+    resetFailedAttempts();
     // Se siamo in sessione token, persisti validazione e mostra pannello
     if (isTokenSession) {
       try {
@@ -1306,6 +1427,7 @@
     }
 
     updateDoorVisibility();
+    updateLockUI();
     setupIntervals();
     document.addEventListener("contextmenu", (e) => e.preventDefault());
     updateCheckinTimeDisplay();
@@ -1416,6 +1538,8 @@
         await updateGlobalCodeVersion();
         updateCheckinTimeDisplay();
       }
+      // aggiorna stato di lock ogni secondo per countdown
+      updateLockUI();
     }, 1000);
 
     setInterval(updateCheckinTimeDisplay, 60000);
@@ -1511,5 +1635,10 @@
     showAuthForm,
     setupTokenUI,
     setupIntervals,
+    // lockout
+    isLoginLocked,
+    updateLockUI,
+    incrementFailedAttempt,
+    resetFailedAttempts,
   });
 })();
