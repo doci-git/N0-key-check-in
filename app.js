@@ -1,10 +1,9 @@
 (() => {
-  ("use strict");
+  "use strict";
 
   // =============================================
   // CONFIGURAZIONE E INIZIALIZZAZIONE
   // =============================================
-  // Your web app's Firebase configuration
   const firebaseConfig = {
     apiKey: "AIzaSyD8oQsvmn7nyV2nYnExD-xw6gchwRJ0Bog",
     authDomain: "multi-client-77378.firebaseapp.com",
@@ -15,6 +14,7 @@
     messagingSenderId: "654507957917",
     appId: "1:654507957917:web:3be18327d2951774113e74",
   };
+
   const BASE_URL_SET =
     "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
   const SECRET_KEY = "musart_secret_123_fixed_key";
@@ -61,6 +61,10 @@
   let MAX_CLICKS = parseInt(localStorage.getItem("max_clicks")) || 3;
   let TIME_LIMIT_MINUTES =
     parseInt(localStorage.getItem("time_limit_minutes")) || 50000;
+  // Limite per sessioni token dopo submit (di default uguale a TIME_LIMIT_MINUTES)
+  const TOKEN_LIMIT_MINUTES =
+    parseInt(localStorage.getItem("token_time_limit_minutes")) ||
+    TIME_LIMIT_MINUTES;
   let CORRECT_CODE = localStorage.getItem("secret_code") || "2245";
   let currentCodeVersion =
     parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
@@ -251,10 +255,28 @@
         10
       );
       if (serverCodeVer > localCodeVer) {
+        // Determina se questo dispositivo ha già visto una versione precedente
+        const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
+        // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
-        const msg =
-          s.global_block_message || "Codice aggiornato: accedi di nuovo";
-        forceGlobalLogout(msg);
+        const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
+        // Vecchi dispositivi: blocco globale (main page) con overlay persistente
+        if (hadLocalVersion) {
+          blockAccess(msg);
+          showSessionExpired();
+          return;
+        }
+        // Token aperto: logout dal token
+        if (hasTokenFootprint()) {
+          forceLogoutFromToken(msg);
+          return;
+        }
+        // Nuovo dispositivo: niente blocco, torna al login
+        unblockAccess();
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+        qs("controlPanel")?.classList.add("hidden");
+        resetSessionForNewCode();
         return;
       }
 
@@ -306,8 +328,70 @@
     updateStatusBar();
   }
 
+  async function setLoginStartTime() {
+    const now = Date.now().toString();
+    const hash = await generateHash(now + SECRET_KEY);
+    setStorage("login_start_time", now, PRE_USE_LIMIT_MINUTES);
+    setStorage("login_hash", hash, PRE_USE_LIMIT_MINUTES);
+    updateStatusBar();
+  }
+
+  async function setTokenUsageStartTime(tokenId) {
+    if (!tokenId) return;
+    const keyT = `token_ts_${tokenId}`;
+    const keyH = `token_th_${tokenId}`;
+    try {
+      if (localStorage.getItem(keyT)) return; // non sovrascrivere se già avviato
+      const now = Date.now().toString();
+      const hash = await generateHash(now + SECRET_KEY + tokenId);
+      setStorage(keyT, now, TOKEN_LIMIT_MINUTES);
+      setStorage(keyH, hash, TOKEN_LIMIT_MINUTES);
+    } catch {}
+  }
+
+  function clearTokenUsageStart(tokenId) {
+    if (!tokenId) return;
+    try {
+      localStorage.removeItem(`token_ts_${tokenId}`);
+      localStorage.removeItem(`token_th_${tokenId}`);
+    } catch {}
+  }
+
   async function checkTimeLimit() {
-    if (isTokenSession) return false; // le sessioni con token non usano hash/LS
+    // Timer anche per sessioni token dopo submit
+    if (isTokenSession) {
+      const t =
+        currentTokenId || new URLSearchParams(location.search).get("token");
+      if (!t) return false;
+      const keyT = `token_ts_${t}`;
+      const keyH = `token_th_${t}`;
+      const ts = getStorage(keyT);
+      const hs = getStorage(keyH);
+      if (ts && hs) {
+        const calc = await generateHash(ts + SECRET_KEY + t);
+        if (calc !== hs) {
+          // hash mismatch => considera scaduta
+          clearTokenUsageStart(t);
+          try { forceLogoutFromToken("Sessione token non valida"); } catch {}
+          // Nascondi pannello e mostra overlay
+          qs("controlPanel")?.classList.add("hidden");
+          qs("expiredOverlay")?.classList.remove("hidden");
+          qs("sessionExpired")?.classList.remove("hidden");
+          return true;
+        }
+        const mins = (Date.now() - parseInt(ts, 10)) / (1000 * 60);
+        if (mins >= TOKEN_LIMIT_MINUTES) {
+          clearTokenUsageStart(t);
+          try { forceLogoutFromToken("Sessione token scaduta"); } catch {}
+          qs("controlPanel")?.classList.add("hidden");
+          qs("expiredOverlay")?.classList.remove("hidden");
+          qs("sessionExpired")?.classList.remove("hidden");
+          return true;
+        }
+      }
+      return false;
+    }
+
     if (!sessionStartTime) return false;
 
     const startTime = getStorage("usage_start_time");
@@ -569,7 +653,6 @@
   }
 
   function checkCodeVersion() {
-    if (isTokenSession && currentTokenCustomCode) return;
     database
       .ref("settings/code_version")
       .once("value")
@@ -598,9 +681,20 @@
         if (codeSnap.exists()) {
           CORRECT_CODE = codeSnap.val();
           localStorage.setItem("secret_code", CORRECT_CODE);
-          blockAccess("Codice aggiornato: accedi di nuovo");
-          resetSessionForNewCode();
-          showSessionExpired();
+          const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
+          const msg = "Codice aggiornato: il link non e' piu' valido";
+          if (hadLocalVersion) {
+            blockAccess(msg);
+            showSessionExpired();
+          } else if (hasTokenFootprint()) {
+            forceLogoutFromToken(msg);
+          } else {
+            unblockAccess();
+            qs("expiredOverlay")?.classList.add("hidden");
+            qs("sessionExpired")?.classList.add("hidden");
+            qs("controlPanel")?.classList.add("hidden");
+            resetSessionForNewCode();
+          }
         }
       });
   }
@@ -780,9 +874,9 @@
         .ref("secure_links/" + token)
         .once("value");
       if (!snapshot.exists()) {
-        showTokenError("Token non valido");
+        showTokenError("Invalid token");
         try {
-          blockAccess("Token non valido", token);
+          blockTokenOnly("Invalid token", token);
         } catch {}
         showSessionExpired();
         maybeCleanUrl();
@@ -790,11 +884,21 @@
       }
 
       const linkData = snapshot.val();
+
+      // Se questo token è stato bloccato su questo dispositivo (es. tempo sessione scaduto), non riattivarlo su refresh
+      if (isTokenDeviceBlocked(token)) {
+        const r = localStorage.getItem(`token_device_reason_${token}`) || "Sessione token scaduta su questo dispositivo";
+        showTokenError(r);
+        try { blockTokenOnly(r, token); } catch {}
+        showSessionExpired();
+        maybeCleanUrl();
+        return false;
+      }
       const isValid = validateSecureToken(linkData);
       if (!isValid.valid) {
         showTokenError(isValid.reason);
         try {
-          blockAccess(isValid.reason || "Accesso bloccato", token);
+          blockTokenOnly(isValid.reason || "Access blocked", token);
         } catch {}
         showSessionExpired();
         maybeCleanUrl();
@@ -810,6 +914,12 @@
       localStorage.removeItem("block_manual_login");
       localStorage.removeItem("blocked_token");
       localStorage.removeItem("blocked_reason");
+      // Assicurati che eventuali overlay di scadenza non restino visibili
+      try {
+        unblockAccess();
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+      } catch {}
 
       showTokenNotification(isValid.remainingUses, !!currentTokenCustomCode);
       await incrementTokenUsage(token, linkData);
@@ -818,10 +928,10 @@
       startTokenRealtimeListener(token);
       return true;
     } catch (error) {
-      console.error("Errore nella verifica del token:", error);
-      showTokenError("Errore di verifica");
+      console.error("Token verification error:", error);
+      showTokenError("Verification error");
       try {
-        blockAccess("Errore di verifica", token);
+        blockTokenOnly("Verification error", token);
       } catch {}
       showSessionExpired();
       maybeCleanUrl();
@@ -854,10 +964,64 @@
     }
   }
 
+  // Blocca solo il token corrente senza applicare il blocco globale del dispositivo
+  function blockTokenOnly(reason = "Accesso bloccato", token = null) {
+    try {
+      localStorage.setItem("blocked_reason", reason);
+      if (token) localStorage.setItem("blocked_token", token);
+    } catch (e) {
+      console.error("Errore blockTokenOnly:", e);
+    }
+  }
+
   function unblockAccess() {
     localStorage.removeItem("block_manual_login");
     localStorage.removeItem("blocked_reason");
     localStorage.removeItem("blocked_token");
+  }
+
+  // Flag di blocco per questo token su questo dispositivo
+  function markTokenDeviceBlocked(token, reason = "") {
+    try {
+      if (!token) return;
+      localStorage.setItem(`token_device_block_${token}`, "1");
+      if (reason) localStorage.setItem(`token_device_reason_${token}`, reason);
+    } catch (e) {
+      console.error("Errore markTokenDeviceBlocked:", e);
+    }
+  }
+
+  function isTokenDeviceBlocked(token) {
+    try {
+      if (!token) return false;
+      return localStorage.getItem(`token_device_block_${token}`) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function clearTokenDeviceBlock(token) {
+    try {
+      if (!token) return;
+      localStorage.removeItem(`token_device_block_${token}`);
+      localStorage.removeItem(`token_device_reason_${token}`);
+    } catch {}
+  }
+
+  function hasTokenFootprint() {
+    try {
+      if (isTokenSession) return true;
+      const urlTok = new URLSearchParams(window.location.search).get("token");
+      if (urlTok) return true;
+      if (localStorage.getItem("blocked_token")) return true;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf("token_ok_") === 0) return true;
+      }
+    } catch (e) {
+      console.warn("hasTokenFootprint check failed:", e);
+    }
+    return false;
   }
 
   function forceGlobalLogout(reason = "Codice aggiornato: accedi di nuovo") {
@@ -868,7 +1032,7 @@
       currentTokenId ||
       new URLSearchParams(location.search).get("token") ||
       null;
-    blockAccess(reason, t);
+    blockTokenOnly(reason, t);
     try {
       if (t) localStorage.removeItem(`token_ok_${t}`);
     } catch {}
@@ -887,7 +1051,9 @@
       currentTokenId ||
       new URLSearchParams(location.search).get("token") ||
       null;
-    blockAccess(reason, t);
+    // Non bloccare globalmente il dispositivo per eventi legati a questo token
+    blockTokenOnly(reason, t);
+    if (t) markTokenDeviceBlocked(t, reason || "Sessione token scaduta");
     try {
       if (t) localStorage.removeItem(`token_ok_${t}`);
     } catch {}
@@ -976,6 +1142,8 @@
     setTimeout(() => n.parentElement && n.remove(), 5000);
   }
 
+  
+
   function showTokenError(reason) {
     const n = document.createElement("div");
     n.style.cssText = `
@@ -1008,7 +1176,9 @@
         clearInterval(iv);
         isTokenSession = false;
         window.isTokenSession = false;
-        blockAccess("Link scaduto", currentTokenId || null);
+        const t = currentTokenId || null;
+        blockTokenOnly("Link expired", t);
+        if (t) markTokenDeviceBlocked(t, "Link expired");
         showSessionExpired();
       }
     }, 1000);
@@ -1024,6 +1194,13 @@
     await setUsageStartTime();
 
     if (await checkTimeLimit()) return;
+
+    // Assicurati di nascondere eventuali overlay di scadenza
+    try {
+      qs("expiredOverlay")?.classList.add("hidden");
+      qs("sessionExpired")?.classList.add("hidden");
+      unblockAccess();
+    } catch {}
 
     showControlPanel();
     qs("checkinTimeInfo") && (qs("checkinTimeInfo").style.display = "block");
@@ -1049,6 +1226,12 @@
       try {
         if (currentTokenId)
           localStorage.setItem(`token_ok_${currentTokenId}`, "1");
+        // Avvia il timer di utilizzo per sessione token dopo submit
+        if (currentTokenId) await setTokenUsageStartTime(currentTokenId);
+        // Nascondi qualsiasi overlay di scadenza eventualmente rimasto
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+        unblockAccess();
       } catch {}
       showControlPanel();
       return;
@@ -1089,6 +1272,11 @@
     await handleSecureToken();
     setupTokenUI();
     if (isTokenSession) unblockAccess();
+    // Se il dispositivo è bloccato e non abbiamo una sessione token valida,
+    // interrompi qui per evitare che l'overlay venga nascosto da altre routine UI.
+    if (isBlocked && !isTokenSession) {
+      return;
+    }
 
     // Auto-accesso se token già validato su questo dispositivo
     if (isTokenSession) {
@@ -1153,7 +1341,12 @@
 
   function showControlPanel() {
     const cp = qs("controlPanel");
-    if (cp) cp.style.display = "block";
+    if (cp) {
+      cp.classList.remove("hidden");
+      cp.style.display = "block";
+    }
+    const root = qs("test2");
+    if (root) root.style.display = "block";
     const ac = qs("authCode");
     if (ac) ac.style.display = "none";
     const af = qs("auth-form");
@@ -1162,6 +1355,9 @@
     if (bc) bc.style.display = "none";
     const imp = qs("important");
     if (imp) imp.style.display = "none";
+    // assicurati che eventuali overlay non coprano il pannello
+    qs("expiredOverlay")?.classList.add("hidden");
+    qs("sessionExpired")?.classList.add("hidden");
     const info = qs("checkinTimeInfo");
     if (info) info.style.display = "block";
     updateCheckinTimeDisplay();
@@ -1191,7 +1387,7 @@
     const expiredMessage = document.querySelector("#sessionExpired p");
     if (expiredMessage)
       expiredMessage.textContent =
-        "Il link di accesso è scaduto. Per accedere di nuovo, richiedi un nuovo link.";
+        "The access link has expired. To access again, request a new link.";
 
     const assistanceBtn = document.querySelector(
       "#sessionExpired .btn-whatsapp"
@@ -1200,7 +1396,7 @@
       assistanceBtn.href =
         "https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need a new access link";
       assistanceBtn.innerHTML =
-        '<i class="fab fa-whatsapp"></i> Richiedi nuovo link';
+        '<i class="fab fa-whatsapp"></i> Request new link';
     }
 
     const authCodeInput = qs("authCode");
