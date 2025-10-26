@@ -269,10 +269,14 @@
 
           <div class="wifi-info">
             <strong>Network Name:</strong>
-            Vodafone-E45457264
-            <br /><br />
+            <span id="wifiSsid">Vodafone-E45457264</span>
+            
+            <br />
             <strong>Password:</strong>
-            JxPdn3db7C2nPGnc
+            <span id="wifiPassword">JxPdn3db7C2nPGnc</span>
+            <button class="btn btn-secondary btn-small" onclick="navigator.clipboard.writeText(document.getElementById('wifiPassword').textContent.trim()).then(()=>{ if(window.showNotification) showNotification('Wi‑Fi password copied'); }).catch(()=>{ /* no-op */ });">
+              <i class="fas fa-copy"></i> Copy Password
+            </button>
           </div>
         </div>
       </div>

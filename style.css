@@ -187,6 +187,13 @@ input[type="password"]:focus {
   border-color: var(--text-muted);
 }
 
+/* Small inline button for copy actions */
+.btn-small {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  margin-left: 8px;
+}
+
 .btn-whatsapp {
   background: var(--dark-border);
   box-shadow: var(--dark-bg);
@@ -702,4 +709,3 @@ input[type="password"]:focus {
   z-index: 10000;
   font-size: 12px;
 } */
- 
