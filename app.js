@@ -198,10 +198,19 @@
   function isFirstVisitDevice() {
     try {
       if (localStorage.getItem("first_visit_done") !== null) return false;
-      const hasCodeVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
       const hasSession = localStorage.getItem("usage_start_time") !== null;
       const isBlocked = localStorage.getItem("block_manual_login") === "1";
-      return !hasCodeVersion && !hasSession && !isBlocked;
+      // Considera primo accesso se non c'è una sessione d'uso precedente,
+      // nessun blocco, e nessuna traccia di token validato
+      let hasTokenFoot = false;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || "";
+        if (k.startsWith("token_ok_")) {
+          hasTokenFoot = true;
+          break;
+        }
+      }
+      return !hasSession && !isBlocked && !hasTokenFoot;
     } catch {
       return false;
     }
@@ -309,6 +318,10 @@
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
         const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
+        // Primo accesso: non mostrare overlay, mostra direttamente il form codice
+        if (fallbackToManualForFirstVisit(msg)) {
+          return;
+        }
         // Vecchi dispositivi: blocco globale (main page) con overlay persistente
         if (hadLocalVersion) {
           blockAccess(msg);
@@ -736,6 +749,8 @@
           localStorage.setItem("secret_code", CORRECT_CODE);
           const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
           const msg = "Codice aggiornato: il link non e' piu' valido";
+          // Primo accesso: non mostrare overlay, passa al form di login
+          if (fallbackToManualForFirstVisit(msg)) return;
           if (hadLocalVersion) {
             blockAccess(msg);
             showSessionExpired();
