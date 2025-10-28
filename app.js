@@ -1439,6 +1439,19 @@
     setupSettingsListener();
     monitorFirebaseConnection();
 
+    // PRIMO ACCESSO SENZA TOKEN: evita overlay e mostra subito il form codice
+    try {
+      const hasToken = new URLSearchParams(location.search).get("token");
+      if (!hasToken && isFirstVisitDevice()) {
+        unblockAccess();
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+        qs("controlPanel")?.classList.add("hidden");
+        showAuthForm();
+        recordFirstVisitHandled();
+      }
+    } catch {}
+
     // BLOCCO PERSISTENTE PRIMA DI TUTTO
     const isBlocked = localStorage.getItem("block_manual_login") === "1";
     if (isBlocked) {
