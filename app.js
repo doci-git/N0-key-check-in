@@ -194,6 +194,39 @@
     }
   }
 
+  // Rilevazione primo accesso dispositivo e fallback alla UI manuale
+  function isFirstVisitDevice() {
+    try {
+      if (localStorage.getItem("first_visit_done") !== null) return false;
+      const hasCodeVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
+      const hasSession = localStorage.getItem("usage_start_time") !== null;
+      const isBlocked = localStorage.getItem("block_manual_login") === "1";
+      return !hasCodeVersion && !hasSession && !isBlocked;
+    } catch {
+      return false;
+    }
+  }
+
+  function recordFirstVisitHandled() {
+    try {
+      localStorage.setItem("first_visit_done", "1");
+    } catch {}
+  }
+
+  function fallbackToManualForFirstVisit(reason) {
+    if (!isFirstVisitDevice()) return false;
+    try {
+      unblockAccess();
+      qs("expiredOverlay")?.classList.add("hidden");
+      qs("sessionExpired")?.classList.add("hidden");
+      qs("controlPanel")?.classList.add("hidden");
+      showAuthForm();
+      recordFirstVisitHandled();
+      if (reason) showNotification(reason, "warning");
+    } catch {}
+    return true;
+  }
+
   // =============================================
   // CRITTOGRAFIA
   // =============================================
@@ -895,9 +928,11 @@
         .once("value");
       if (!snapshot.exists()) {
         showTokenError("Invalid token");
-        try {
-          blockTokenOnly("Invalid token", token);
-        } catch {}
+        try { blockTokenOnly("Invalid token", token); } catch {}
+        if (fallbackToManualForFirstVisit("Invalid or expired link. Please use your access code.")) {
+          maybeCleanUrl();
+          return false;
+        }
         showSessionExpired();
         maybeCleanUrl();
         return false;
@@ -910,6 +945,10 @@
         const r = localStorage.getItem(`token_device_reason_${token}`) || "Sessione token scaduta su questo dispositivo";
         showTokenError(r);
         try { blockTokenOnly(r, token); } catch {}
+        if (fallbackToManualForFirstVisit(r)) {
+          maybeCleanUrl();
+          return false;
+        }
         showSessionExpired();
         maybeCleanUrl();
         return false;
@@ -917,9 +956,11 @@
       const isValid = validateSecureToken(linkData);
       if (!isValid.valid) {
         showTokenError(isValid.reason);
-        try {
-          blockTokenOnly(isValid.reason || "Access blocked", token);
-        } catch {}
+        try { blockTokenOnly(isValid.reason || "Access blocked", token); } catch {}
+        if (fallbackToManualForFirstVisit(isValid.reason || "Access blocked")) {
+          maybeCleanUrl();
+          return false;
+        }
         showSessionExpired();
         maybeCleanUrl();
         return false;
@@ -950,9 +991,11 @@
     } catch (error) {
       console.error("Token verification error:", error);
       showTokenError("Verification error");
-      try {
-        blockTokenOnly("Verification error", token);
-      } catch {}
+      try { blockTokenOnly("Verification error", token); } catch {}
+      if (fallbackToManualForFirstVisit("Verification error. Please use your access code.")) {
+        maybeCleanUrl();
+        return false;
+      }
       showSessionExpired();
       maybeCleanUrl();
       return false;
