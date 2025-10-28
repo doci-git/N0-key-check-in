@@ -356,6 +356,13 @@
         // cancella eventuale lockout locale e contatore tentativi
         localStorage.removeItem("login_lock_until");
         localStorage.removeItem("login_attempts");
+        // Sincronizza la code_version locale con quella del server per evitare un blocco immediato post-reset
+        try {
+          const srvCodeVer = parseInt(s.code_version || 1, 10);
+          if (Number.isFinite(srvCodeVer)) {
+            localStorage.setItem(CODE_VERSION_KEY, String(srvCodeVer));
+          }
+        } catch {}
         qs("expiredOverlay")?.classList.add("hidden");
         qs("sessionExpired")?.classList.add("hidden");
         qs("controlPanel")?.classList.add("hidden");
