@@ -363,6 +363,25 @@
             localStorage.setItem(CODE_VERSION_KEY, String(srvCodeVer));
           }
         } catch {}
+        // Pulisci anche tutti i blocchi legati ai token su questo dispositivo
+        try {
+          const toRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k) continue;
+            if (
+              k.indexOf("token_device_block_") === 0 ||
+              k.indexOf("token_device_reason_") === 0 ||
+              k.indexOf("token_ts_") === 0 ||
+              k.indexOf("token_th_") === 0
+            ) {
+              toRemove.push(k);
+            }
+          }
+          toRemove.forEach((k) => localStorage.removeItem(k));
+          localStorage.removeItem("blocked_token");
+          // non rimuoviamo token_ok_* per non perdere validazioni volontariamente conservate
+        } catch {}
         qs("expiredOverlay")?.classList.add("hidden");
         qs("sessionExpired")?.classList.add("hidden");
         qs("controlPanel")?.classList.add("hidden");
