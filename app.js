@@ -80,6 +80,7 @@
   let currentTokenCustomCode = null;
   let sessionStartTime = null;
   let currentDevice = null;
+  let suppressOverlay = false; // evita overlay su primo accesso senza token
 
   // Tentativi errati e lockout
   let MAX_LOGIN_ATTEMPTS =
@@ -225,6 +226,7 @@
   function fallbackToManualForFirstVisit(reason) {
     if (!isFirstVisitDevice()) return false;
     try {
+      suppressOverlay = true;
       unblockAccess();
       qs("expiredOverlay")?.classList.add("hidden");
       qs("sessionExpired")?.classList.add("hidden");
@@ -492,6 +494,10 @@
 
   function showSessionExpired() {
     if (isTokenSession) return; // overlay solo per sessioni manuali
+    try {
+      const hasToken = new URLSearchParams(location.search).get("token");
+      if (!hasToken && suppressOverlay) return; // evita overlay su primo accesso senza token
+    } catch {}
     if (timeCheckInterval) clearInterval(timeCheckInterval);
     if (codeCheckInterval) clearInterval(codeCheckInterval);
 
@@ -1443,6 +1449,7 @@
     try {
       const hasToken = new URLSearchParams(location.search).get("token");
       if (!hasToken && isFirstVisitDevice()) {
+        suppressOverlay = true;
         unblockAccess();
         qs("expiredOverlay")?.classList.add("hidden");
         qs("sessionExpired")?.classList.add("hidden");
