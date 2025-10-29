@@ -87,6 +87,7 @@
   let MAX_LOGIN_ATTEMPTS =
     parseInt(localStorage.getItem("max_login_attempts")) || 5;
   let LOCKOUT_MINUTES = parseInt(localStorage.getItem("lockout_minutes")) || 1;
+  const TEMP_BLOCK_MINUTES_AFTER_TOKEN = 30; // temporary global block after token expiry
 
   // Intervalli/listener
   let timeCheckInterval = null;
@@ -112,8 +113,8 @@
 
   function canShowOverlay() {
     try {
-      // For token flows (present or active), overlays must be allowed
-      if (HAD_TOKEN_PARAM || window.isTokenSession || isTokenSession) return true;
+      // For token flows (present or active) or manual block, overlays must be allowed
+      if (HAD_TOKEN_PARAM || window.isTokenSession || isTokenSession || isManualBlockActive()) return true;
       // Otherwise, honor the overlay-skip flag for first visits
       return !(
         document.documentElement.classList.contains("overlay-skip") ||
@@ -453,6 +454,7 @@
     const now = Date.now();
     const minutesPassed = (now - parseInt(startTime, 10)) / (1000 * 60);
     if (minutesPassed >= TIME_LIMIT_MINUTES) {
+      try { clearManualSession(); } catch {}
       showSessionExpired();
       return true;
     }
@@ -927,11 +929,7 @@
         .ref("secure_links/" + token)
         .once("value");
       if (!snapshot.exists()) {
-        showTokenError("Invalid token");
-        try {
-          blockTokenOnly("Invalid token", token);
-        } catch {}
-        showSessionExpired();
+        try { forceLogoutFromToken("Invalid token"); } catch {}
         maybeCleanUrl();
         return false;
       }
@@ -941,19 +939,13 @@
       // Se questo token è stato bloccato su questo dispositivo (es. tempo sessione scaduto), non riattivarlo su refresh
       if (isTokenDeviceBlocked(token)) {
         const r = localStorage.getItem(`token_device_reason_${token}`) || "Sessione token scaduta su questo dispositivo";
-        showTokenError(r);
-        try { blockTokenOnly(r, token); } catch {}
-        showSessionExpired();
+        try { forceLogoutFromToken(r); } catch {}
         maybeCleanUrl();
         return false;
       }
       const isValid = validateSecureToken(linkData);
       if (!isValid.valid) {
-        showTokenError(isValid.reason);
-        try {
-          blockTokenOnly(isValid.reason || "Access blocked", token);
-        } catch {}
-        showSessionExpired();
+        try { forceLogoutFromToken(isValid.reason || "Access blocked"); } catch {}
         maybeCleanUrl();
         return false;
       }
@@ -982,11 +974,7 @@
       return true;
     } catch (error) {
       console.error("Token verification error:", error);
-      showTokenError("Verification error");
-      try {
-        blockTokenOnly("Verification error", token);
-      } catch {}
-      showSessionExpired();
+      try { forceLogoutFromToken("Verification error"); } catch {}
       maybeCleanUrl();
       return false;
     }
@@ -1031,6 +1019,34 @@
     localStorage.removeItem("block_manual_login");
     localStorage.removeItem("blocked_reason");
     localStorage.removeItem("blocked_token");
+  }
+
+  // Temporary manual block helpers
+  function setTemporaryManualBlock(minutes, reason = "Access blocked", token = null) {
+    try {
+      const until = Date.now() + Math.max(1, parseInt(minutes, 10) || 0) * 60 * 1000;
+      localStorage.setItem("block_manual_login", "1");
+      localStorage.setItem("blocked_reason", reason);
+      if (token) localStorage.setItem("blocked_token", token);
+      localStorage.setItem("block_manual_until", String(until));
+    } catch {}
+  }
+
+  function isManualBlockActive() {
+    try {
+      if (localStorage.getItem("block_manual_login") !== "1") return false;
+      const until = parseInt(localStorage.getItem("block_manual_until") || "0", 10);
+      if (!until) return true; // treat as indefinite block
+      if (Date.now() < until) return true;
+      // expired -> cleanup
+      localStorage.removeItem("block_manual_login");
+      localStorage.removeItem("blocked_reason");
+      localStorage.removeItem("blocked_token");
+      localStorage.removeItem("block_manual_until");
+      return false;
+    } catch {
+      return false;
+    }
   }
 
   // Flag di blocco per questo token su questo dispositivo
@@ -1137,6 +1153,10 @@
           ? "Link scaduto"
           : "Utilizzi esauriti";
         forceLogoutFromToken(why);
+        // Apply temporary global block only for expiry or usage exhaustion
+        if (expired || exhausted) {
+          try { setTemporaryManualBlock(TEMP_BLOCK_MINUTES_AFTER_TOKEN, why, token); } catch {}
+        }
       }
     });
   }
@@ -1227,12 +1247,22 @@
     const iv = setInterval(() => {
       if (Date.now() > expirationTime) {
         clearInterval(iv);
-        isTokenSession = false;
-        window.isTokenSession = false;
-        const t = currentTokenId || null;
-        blockTokenOnly("Link expired", t);
-        if (t) markTokenDeviceBlocked(t, "Link expired");
-        showSessionExpired();
+        try {
+          forceLogoutFromToken("Link expired");
+          try {
+            const t = currentTokenId || new URLSearchParams(location.search).get("token") || null;
+            setTemporaryManualBlock(TEMP_BLOCK_MINUTES_AFTER_TOKEN, "Link expired", t);
+          } catch {}
+        } catch {
+          // Fallback to minimal logout
+          isTokenSession = false;
+          window.isTokenSession = false;
+          const t = currentTokenId || null;
+          blockTokenOnly("Link expired", t);
+          if (t) markTokenDeviceBlocked(t, "Link expired");
+          showSessionExpired();
+          try { setTemporaryManualBlock(TEMP_BLOCK_MINUTES_AFTER_TOKEN, "Link expired", t); } catch {}
+        }
       }
     }, 1000);
   }
@@ -1342,6 +1372,9 @@
       qs("expiredOverlay")?.classList.add("hidden");
       qs("sessionExpired")?.classList.add("hidden");
       unblockAccess();
+      // Once logged in, allow overlays to show on expiry
+      document.documentElement.classList.remove("overlay-skip");
+      document.body.classList.remove("overlay-skip");
     } catch {}
 
     showControlPanel();
@@ -1386,6 +1419,9 @@
         qs("expiredOverlay")?.classList.add("hidden");
         qs("sessionExpired")?.classList.add("hidden");
         unblockAccess();
+        // Once validated, allow overlays to show on token expiry
+        document.documentElement.classList.remove("overlay-skip");
+        document.body.classList.remove("overlay-skip");
       } catch {}
       showControlPanel();
       return;
@@ -1427,7 +1463,7 @@
     monitorFirebaseConnection();
 
     // BLOCCO PERSISTENTE PRIMA DI TUTTO
-    const isBlocked = localStorage.getItem("block_manual_login") === "1";
+    const isBlocked = isManualBlockActive();
     if (isBlocked) {
       isTokenSession = false;
       window.isTokenSession = false;
@@ -1456,7 +1492,7 @@
     }
 
     // Se non bloccato e senza token: UI manuale
-    if (!isTokenSession && localStorage.getItem("block_manual_login") !== "1") {
+    if (!isTokenSession && !isManualBlockActive()) {
       const expired = await checkTimeLimit();
       if (!expired) {
         const startTime = getStorage("usage_start_time");
