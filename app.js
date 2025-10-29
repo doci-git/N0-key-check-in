@@ -974,13 +974,8 @@
       currentTokenId = token;
       currentTokenCustomCode = linkData.customCode || null;
 
-      // sblocca blocchi precedenti
-      localStorage.removeItem("block_manual_login");
-      localStorage.removeItem("blocked_token");
-      localStorage.removeItem("blocked_reason");
-      // Assicurati che eventuali overlay di scadenza non restino visibili
+      // Assicurati che eventuali overlay di scadenza non restino visibili (solo token UI)
       try {
-        unblockAccess();
         hideTokenOverlay();
       } catch {}
 
@@ -1173,10 +1168,7 @@
           ? "Link scaduto"
           : "Utilizzi esauriti";
         forceLogoutFromToken(why);
-        // Apply temporary global block only for expiry or usage exhaustion
-        if (expired || exhausted) {
-          try { setTemporaryManualBlock(TEMP_BLOCK_MINUTES_AFTER_TOKEN, why, token); } catch {}
-        }
+        // Do not apply any manual global block for token events
       }
     });
   }
@@ -1269,10 +1261,6 @@
         clearInterval(iv);
         try {
           forceLogoutFromToken("Link expired");
-          try {
-            const t = currentTokenId || new URLSearchParams(location.search).get("token") || null;
-            setTemporaryManualBlock(TEMP_BLOCK_MINUTES_AFTER_TOKEN, "Link expired", t);
-          } catch {}
         } catch {
           // Fallback to minimal logout
           isTokenSession = false;
@@ -1281,7 +1269,7 @@
           blockTokenOnly("Link expired", t);
           if (t) markTokenDeviceBlocked(t, "Link expired");
           showSessionExpired();
-          try { setTemporaryManualBlock(TEMP_BLOCK_MINUTES_AFTER_TOKEN, "Link expired", t); } catch {}
+          // No manual global block
         }
       }
     }, 1000);
@@ -1437,8 +1425,6 @@
         if (currentTokenId) await setTokenUsageStartTime(currentTokenId);
         // Nascondi qualsiasi overlay di scadenza eventualmente rimasto
         hideTokenOverlay();
-        
-        unblockAccess();
         // Once validated, allow overlays to show on token expiry
         document.documentElement.classList.remove("overlay-skip");
         document.body.classList.remove("overlay-skip");
@@ -1493,7 +1479,7 @@
     // TOKEN prima della sessione manuale
     await handleSecureToken();
     setupTokenUI();
-    if (isTokenSession) unblockAccess();
+    // Non toccare i blocchi manuali dalla sessione token
     // Se il dispositivo è bloccato e non abbiamo una sessione token valida,
     // interrompi qui per evitare che l'overlay venga nascosto da altre routine UI.
     if (isBlocked && !isTokenSession) {
