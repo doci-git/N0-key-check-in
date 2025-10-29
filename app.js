@@ -948,11 +948,20 @@
     }
 
     try {
+      // Wait briefly for Firebase connection on first load
+      try {
+        const csnap = await database.ref(".info/connected").once("value");
+        if (!csnap.val()) await new Promise((r) => setTimeout(r, 300));
+      } catch {}
+
       const ref = database.ref("secure_links/" + token);
       let snapshot = await ref.once("value");
       if (!snapshot.exists()) {
-        // Retry once after a short delay to avoid transient race/latency
-        await new Promise((r) => setTimeout(r, 400));
+        await new Promise((r) => setTimeout(r, 700));
+        snapshot = await ref.once("value");
+      }
+      if (!snapshot.exists()) {
+        await new Promise((r) => setTimeout(r, 1400));
         snapshot = await ref.once("value");
       }
       if (!snapshot.exists()) {
