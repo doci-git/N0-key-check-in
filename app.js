@@ -276,11 +276,22 @@
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
         const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
-        // Vecchi dispositivi: blocco globale (overlay persistente finché l'admin non ripristina)
+        // Vecchi dispositivi: se si tratta di link con token blocca; su link normale fai soft reset
         if (hadLocalVersion) {
-          blockAccess(msg);
-          showSessionExpired();
-          return;
+          const hasTokenInUrl = new URLSearchParams(location.search).has("token");
+          if (hasTokenInUrl) {
+            blockAccess(msg);
+            showSessionExpired();
+            return;
+          } else {
+            // soft reset per link normale
+            unblockAccess();
+            qs("expiredOverlay")?.classList.add("hidden");
+            qs("sessionExpired")?.classList.add("hidden");
+            qs("controlPanel")?.classList.add("hidden");
+            resetSessionForNewCode();
+            return;
+          }
         }
         // Token aperto: logout dal token
         if (hasTokenFootprint()) {
@@ -710,9 +721,19 @@
           const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
           const msg = "Codice aggiornato: il link non e' piu' valido";
           if (hadLocalVersion) {
-            // Blocco persistente con overlay finché non viene ripristinata la sessione
-            blockAccess(msg);
-            showSessionExpired();
+            const hasTokenInUrl = new URLSearchParams(location.search).has("token");
+            if (hasTokenInUrl) {
+              // Blocco persistente per link con token
+              blockAccess(msg);
+              showSessionExpired();
+            } else {
+              // Soft reset per link normale (niente overlay)
+              unblockAccess();
+              qs("expiredOverlay")?.classList.add("hidden");
+              qs("sessionExpired")?.classList.add("hidden");
+              qs("controlPanel")?.classList.add("hidden");
+              resetSessionForNewCode();
+            }
           } else if (hasTokenFootprint()) {
             forceLogoutFromToken(msg);
           } else {
@@ -1388,9 +1409,10 @@
     setupSettingsListener();
     monitorFirebaseConnection();
 
-    // BLOCCO PERSISTENTE PRIMA DI TUTTO
+    // BLOCCO PERSISTENTE PRIMA DI TUTTO (salta se c'è token in URL)
+    const hasTokenInUrl = new URLSearchParams(location.search).has("token");
     const isBlocked = localStorage.getItem("block_manual_login") === "1";
-    if (isBlocked) {
+    if (isBlocked && !hasTokenInUrl) {
       isTokenSession = false;
       window.isTokenSession = false;
       showSessionExpired();
