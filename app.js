@@ -275,23 +275,15 @@
         const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
-        const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
-        // Vecchi dispositivi: se si tratta di link con token blocca; su link normale fai soft reset
+        const msg = s.global_block_message || "Access code updated: please enter the new code";
+        // Vecchi dispositivi: soft reset (niente blocco persistente)
         if (hadLocalVersion) {
-          const hasTokenInUrl = new URLSearchParams(location.search).has("token");
-          if (hasTokenInUrl) {
-            blockAccess(msg);
-            showSessionExpired();
-            return;
-          } else {
-            // soft reset per link normale
-            unblockAccess();
-            qs("expiredOverlay")?.classList.add("hidden");
-            qs("sessionExpired")?.classList.add("hidden");
-            qs("controlPanel")?.classList.add("hidden");
-            resetSessionForNewCode();
-            return;
-          }
+          unblockAccess();
+          qs("expiredOverlay")?.classList.add("hidden");
+          qs("sessionExpired")?.classList.add("hidden");
+          qs("controlPanel")?.classList.add("hidden");
+          resetSessionForNewCode();
+          return;
         }
         // Token aperto: logout dal token
         if (hasTokenFootprint()) {
@@ -314,27 +306,21 @@
         10
       );
       if (serverUnblockVer > localUnblockVer) {
-        const lastCodeUpdateTs = parseInt(
-          s.last_code_update || localStorage.getItem("last_code_update") || "0",
-          10
+        localStorage.setItem(UNBLOCK_VERSION_KEY, String(serverUnblockVer));
+        unblockAccess();
+        // cancella eventuale lockout locale e contatore tentativi
+        localStorage.removeItem("login_lock_until");
+        localStorage.removeItem("login_attempts");
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+        qs("controlPanel")?.classList.add("hidden");
+        showAuthForm();
+        updateDoorVisibility();
+        showNotification(
+          s.global_unblock_message ||
+            "Session restored. Please enter the access code."
         );
-        if (serverUnblockVer > lastCodeUpdateTs) {
-          localStorage.setItem(UNBLOCK_VERSION_KEY, String(serverUnblockVer));
-          unblockAccess();
-          // cancella eventuale lockout locale e contatore tentativi
-          localStorage.removeItem("login_lock_until");
-          localStorage.removeItem("login_attempts");
-          qs("expiredOverlay")?.classList.add("hidden");
-          qs("sessionExpired")?.classList.add("hidden");
-          qs("controlPanel")?.classList.add("hidden");
-          showAuthForm();
-          updateDoorVisibility();
-          showNotification(
-            s.global_unblock_message ||
-              "Sessione ripristinata. Inserisci il codice per accedere."
-          );
-          updateLockUI();
-        }
+        updateLockUI();
       }
     });
   }
@@ -719,21 +705,14 @@
           CORRECT_CODE = codeSnap.val();
           localStorage.setItem("secret_code", CORRECT_CODE);
           const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
-          const msg = "Codice aggiornato: il link non e' piu' valido";
+          const msg = "Access code updated: please enter the new code";
           if (hadLocalVersion) {
-            const hasTokenInUrl = new URLSearchParams(location.search).has("token");
-            if (hasTokenInUrl) {
-              // Blocco persistente per link con token
-              blockAccess(msg);
-              showSessionExpired();
-            } else {
-              // Soft reset per link normale (niente overlay)
-              unblockAccess();
-              qs("expiredOverlay")?.classList.add("hidden");
-              qs("sessionExpired")?.classList.add("hidden");
-              qs("controlPanel")?.classList.add("hidden");
-              resetSessionForNewCode();
-            }
+            // Soft reset: no persistent block or overlay
+            unblockAccess();
+            qs("expiredOverlay")?.classList.add("hidden");
+            qs("sessionExpired")?.classList.add("hidden");
+            qs("controlPanel")?.classList.add("hidden");
+            resetSessionForNewCode();
           } else if (hasTokenFootprint()) {
             forceLogoutFromToken(msg);
           } else {
@@ -1409,10 +1388,9 @@
     setupSettingsListener();
     monitorFirebaseConnection();
 
-    // BLOCCO PERSISTENTE PRIMA DI TUTTO (salta se c'è token in URL)
-    const hasTokenInUrl = new URLSearchParams(location.search).has("token");
+    // BLOCCO PERSISTENTE PRIMA DI TUTTO
     const isBlocked = localStorage.getItem("block_manual_login") === "1";
-    if (isBlocked && !hasTokenInUrl) {
+    if (isBlocked) {
       isTokenSession = false;
       window.isTokenSession = false;
       showSessionExpired();
