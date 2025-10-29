@@ -319,15 +319,15 @@
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
         const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
-        // Vecchi dispositivi: blocco globale (main page) con overlay persistente
+        // Se sessione token attiva o tracce token: forza logout token
+        if (isTokenSession || hasTokenFootprint()) {
+          forceLogoutFromToken(msg);
+          return;
+        }
+        // Vecchi dispositivi manuali: blocco globale (overlay persistente)
         if (hadLocalVersion) {
           blockAccess(msg);
           showSessionExpired();
-          return;
-        }
-        // Token aperto: logout dal token
-        if (hasTokenFootprint()) {
-          forceLogoutFromToken(msg);
           return;
         }
         // Nuovo dispositivo: niente blocco, torna al login
@@ -754,11 +754,11 @@
           localStorage.setItem("secret_code", CORRECT_CODE);
           const hadLocalVersion = HAD_LOCAL_CODE_VERSION;
           const msg = "Codice aggiornato: il link non e' piu' valido";
-          if (hadLocalVersion) {
+          if (isTokenSession || hasTokenFootprint()) {
+            forceLogoutFromToken(msg);
+          } else if (hadLocalVersion) {
             blockAccess(msg);
             showSessionExpired();
-          } else if (hasTokenFootprint()) {
-            forceLogoutFromToken(msg);
           } else {
             unblockAccess();
             hideTokenOverlay();
