@@ -934,7 +934,12 @@
 
   async function handleSecureToken() {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
+    const rawToken = urlParams.get("token");
+    // Sanitize token from messaging apps copy/paste artefacts
+    const token = (rawToken || "")
+      .trim()
+      .replace(/\s+/g, "")
+      .replace(/[^A-Za-z0-9_\-]/g, "");
     if (!token) {
       isTokenSession = false;
       window.isTokenSession = false;
@@ -943,9 +948,13 @@
     }
 
     try {
-      const snapshot = await database
-        .ref("secure_links/" + token)
-        .once("value");
+      const ref = database.ref("secure_links/" + token);
+      let snapshot = await ref.once("value");
+      if (!snapshot.exists()) {
+        // Retry once after a short delay to avoid transient race/latency
+        await new Promise((r) => setTimeout(r, 400));
+        snapshot = await ref.once("value");
+      }
       if (!snapshot.exists()) {
         try { forceLogoutFromToken("Invalid token"); } catch {}
         showTokenOverlay("Invalid token");
