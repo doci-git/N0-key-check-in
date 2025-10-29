@@ -3,21 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>N0-key - Check-in System</title>
-    <script>
-      // First-visit guard: suppress overlays only for non-token visits
-      (function () {
-        try {
-          var hasToken = new URLSearchParams(location.search).has('token');
-          if (!localStorage.getItem('first_visit_done')) {
-            localStorage.setItem('first_visit_done', '1');
-            if (!hasToken) {
-              document.documentElement.classList.add('overlay-skip');
-            }
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <title>MusArt - Check-in System</title>
     <link rel="stylesheet" href="style.css?v=3.0" />
     <link
       rel="stylesheet"
@@ -28,10 +14,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Circular,-apple-system,BlinkMacSystemFont,Roboto,Helvetica Neue,sans-serif&display=swap"
       rel="stylesheet"
     />
+     <link rel="icon" type="image/x-icon" href="N0-key.ico">
     <!-- Aggiungi questi script nell'head di index.html -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script></head>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  </head>
 
   <body>
     <div id="expiredOverlay" class="expired-overlay hidden">
@@ -52,28 +40,10 @@
       <!-- <button id="toggleAdmin" class="admin-toggle" style="bottom:0px; position: absolute; left: 0px;">⚙️</button> -->
     </div>
 
-    <!-- Token-only overlay (does not affect manual overlay) -->
-    <div id="tokenExpiredOverlay" class="expired-overlay hidden">
-      <i
-        class="fas fa-shield-alt"
-        style="font-size: 4rem; margin-bottom: 20px; color: #ff5a5f"
-      ></i>
-      <h2>Secure Link Expired</h2>
-      <p id="tokenExpiredText">The secure access link is no longer valid.</p>
-
-      <a
-        id="tokenAssistBtn"
-        class="btn btn-whatsapp"
-        href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need a new access link"
-      >
-        <i class="fab fa-whatsapp"></i> Request New Link
-      </a>
-    </div>
-
     <div class="container"  id="test2">
       <div class="card fade-in">
         <div class="header">
-          <h1 class="logo">N<span class="spa">0</span>-key</h1>
+          <h1 class="logo">MusArt</h1>
           <!-- <div class="subtitle">Check-in Information</div> -->
         </div>
         <div class="card-title">
@@ -155,7 +125,7 @@
               <p>
                 Each button can be used a maximum of <strong>2 times</strong>.
                 Please use it only for check-in. <br /><br />
-                Access will automatically expire 12 hours after the first click.
+                Access will automatically expire 24 hours.
               </p>
             </div>
 
@@ -285,21 +255,21 @@
 
       <div style="text-align: center; margin: 20px 0">
         <a href="#wifi-popup" class="btn btn-secondary">
-          <i class="fas fa-wifi"></i> Wi-Fi Information
+          <i class="fas fa-wifi"></i> Wi-Fi / Indications
         </a>
       </div>
 
       <div id="wifi-popup" class="wifi-popup">
         <div class="wifi-popup-content">
           <a href="#" class="wifi-popup-close">&times;</a>
-          <h3>Wi-Fi Information</h3>
+          <h3>Wi-Fi / Indications</h3>
           <p>
-            If you don't have mobile internet when you arrive, you can still
+            If you don't have mobile internet when you arrive for opening the door, you can still
             connect to our Wi-Fi standing in front door.
           </p>
 
           <div class="wifi-info">
-            <strong>Network Name:</strong>
+                      <strong>Network Name:</strong>
             <span id="wifiSsid">Vodafone-E45457264</span>
             
             <br />
@@ -308,6 +278,14 @@
             <button class="btn btn-secondary btn-small" onclick="navigator.clipboard.writeText(document.getElementById('wifiPassword').textContent.trim()).then(()=>{ if(window.showNotification) showNotification('Wi‑Fi password copied'); }).catch(()=>{ /* no-op */ });">
               <i class="fas fa-copy"></i> Copy Password
             </button>
+          </div>
+           <div class="wifi-info">
+            <strong>Indications:</strong>
+           click on pin to open google maps Indications
+            <br/><br>
+            <a href="https://maps.app.goo.gl/ewJ6dGh3HXpaPmBF8"><i class="fa-solid fa-location-dot" style="color: #ff5a5f; font-size:2rem;"></i></a>
+          </div>
+            
           </div>
         </div>
       </div>
