@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>N0-key - Check-in System</title>
+    <script>
+      // First-visit guard: ensure overlays are suppressed before anything else runs
+      (function () {
+        try {
+          if (!localStorage.getItem('first_visit_done')) {
+            localStorage.setItem('first_visit_done', '1');
+            document.documentElement.classList.add('overlay-skip');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="stylesheet" href="style.css?v=3.0" />
     <link
       rel="stylesheet"
@@ -17,19 +28,7 @@
     <!-- Aggiungi questi script nell'head di index.html -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script>
-      // First-visit guard: ensure overlays are suppressed before app.js runs
-      (function () {
-        try {
-          if (!localStorage.getItem('first_visit_done')) {
-            localStorage.setItem('first_visit_done', '1');
-            document.documentElement.classList.add('overlay-skip');
-          }
-        } catch (e) {}
-      })();
-    </script>
-  </head>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script></head>
 
   <body>
     <div id="expiredOverlay" class="expired-overlay hidden">

@@ -109,6 +109,17 @@
     return document.getElementById(id);
   }
 
+  function canShowOverlay() {
+    try {
+      return !(
+        document.documentElement.classList.contains("overlay-skip") ||
+        document.body.classList.contains("overlay-skip")
+      );
+    } catch {
+      return true;
+    }
+  }
+
   function on(id, evt, handler) {
     const el = qs(id);
     if (el) el.addEventListener(evt, handler);
@@ -396,8 +407,13 @@
           try { forceLogoutFromToken("Sessione token non valida"); } catch {}
           // Nascondi pannello e mostra overlay
           qs("controlPanel")?.classList.add("hidden");
-          qs("expiredOverlay")?.classList.remove("hidden");
-          qs("sessionExpired")?.classList.remove("hidden");
+          if (canShowOverlay()) {
+            qs("expiredOverlay")?.classList.remove("hidden");
+            qs("sessionExpired")?.classList.remove("hidden");
+          } else {
+            qs("expiredOverlay")?.classList.add("hidden");
+            qs("sessionExpired")?.classList.add("hidden");
+          }
           return true;
         }
         const mins = (Date.now() - parseInt(ts, 10)) / (1000 * 60);
@@ -405,8 +421,13 @@
           clearTokenUsageStart(t);
           try { forceLogoutFromToken("Sessione token scaduta"); } catch {}
           qs("controlPanel")?.classList.add("hidden");
-          qs("expiredOverlay")?.classList.remove("hidden");
-          qs("sessionExpired")?.classList.remove("hidden");
+          if (canShowOverlay()) {
+            qs("expiredOverlay")?.classList.remove("hidden");
+            qs("sessionExpired")?.classList.remove("hidden");
+          } else {
+            qs("expiredOverlay")?.classList.add("hidden");
+            qs("sessionExpired")?.classList.add("hidden");
+          }
           return true;
         }
       }
@@ -446,6 +467,13 @@
   }
 
   function showSessionExpired() {
+    // On first-visit session, suppress overlay to avoid black screen
+    if (!canShowOverlay()) {
+      qs("expiredOverlay")?.classList.add("hidden");
+      qs("controlPanel")?.classList.add("hidden");
+      qs("sessionExpired")?.classList.add("hidden");
+      return;
+    }
     if (isTokenSession) return; // overlay solo per sessioni manuali
     if (timeCheckInterval) clearInterval(timeCheckInterval);
     if (codeCheckInterval) clearInterval(codeCheckInterval);
