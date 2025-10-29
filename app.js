@@ -275,14 +275,11 @@
         const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
-        const msg = s.global_block_message || "Access code updated: please enter the new code";
-        // Vecchi dispositivi: soft reset (niente blocco persistente)
+        const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
+        // Vecchi dispositivi: blocco globale (overlay persistente finché l'admin non ripristina)
         if (hadLocalVersion) {
-          unblockAccess();
-          qs("expiredOverlay")?.classList.add("hidden");
-          qs("sessionExpired")?.classList.add("hidden");
-          qs("controlPanel")?.classList.add("hidden");
-          resetSessionForNewCode();
+          blockAccess(msg);
+          showSessionExpired();
           return;
         }
         // Token aperto: logout dal token
@@ -705,14 +702,11 @@
           CORRECT_CODE = codeSnap.val();
           localStorage.setItem("secret_code", CORRECT_CODE);
           const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
-          const msg = "Access code updated: please enter the new code";
+          const msg = "Codice aggiornato: il link non e' piu' valido";
           if (hadLocalVersion) {
-            // Soft reset: no persistent block or overlay
-            unblockAccess();
-            qs("expiredOverlay")?.classList.add("hidden");
-            qs("sessionExpired")?.classList.add("hidden");
-            qs("controlPanel")?.classList.add("hidden");
-            resetSessionForNewCode();
+            // Blocco persistente con overlay finché non viene ripristinata la sessione
+            blockAccess(msg);
+            showSessionExpired();
           } else if (hasTokenFootprint()) {
             forceLogoutFromToken(msg);
           } else {
