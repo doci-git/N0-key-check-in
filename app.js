@@ -275,11 +275,14 @@
         const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
-        const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
-        // Vecchi dispositivi: blocco globale (main page) con overlay persistente
+        const msg = s.global_block_message || "Access code updated: please enter the new code";
+        // Vecchi dispositivi: soft reset (niente blocco persistente)
         if (hadLocalVersion) {
-          blockAccess(msg);
-          showSessionExpired();
+          unblockAccess();
+          qs("expiredOverlay")?.classList.add("hidden");
+          qs("sessionExpired")?.classList.add("hidden");
+          qs("controlPanel")?.classList.add("hidden");
+          resetSessionForNewCode();
           return;
         }
         // Token aperto: logout dal token
@@ -315,7 +318,7 @@
         updateDoorVisibility();
         showNotification(
           s.global_unblock_message ||
-            "Sessione ripristinata. Inserisci il codice per accedere."
+            "Session restored. Please enter the access code."
         );
         updateLockUI();
       }
@@ -702,10 +705,14 @@
           CORRECT_CODE = codeSnap.val();
           localStorage.setItem("secret_code", CORRECT_CODE);
           const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
-          const msg = "Codice aggiornato: il link non e' piu' valido";
+          const msg = "Access code updated: please enter the new code";
           if (hadLocalVersion) {
-            blockAccess(msg);
-            showSessionExpired();
+            // Soft reset: no persistent block or overlay
+            unblockAccess();
+            qs("expiredOverlay")?.classList.add("hidden");
+            qs("sessionExpired")?.classList.add("hidden");
+            qs("controlPanel")?.classList.add("hidden");
+            resetSessionForNewCode();
           } else if (hasTokenFootprint()) {
             forceLogoutFromToken(msg);
           } else {
