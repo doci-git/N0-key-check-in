@@ -134,8 +134,8 @@
   }
 
   function hideManualOverlay() {
-    hideTokenOverlay();
-    
+    qs("expiredOverlay")?.classList.add("hidden");
+    qs("sessionExpired")?.classList.add("hidden");
   }
 
   function showTokenOverlay(message) {
@@ -149,6 +149,31 @@
   function hideTokenOverlay() {
     const el = qs("tokenExpiredOverlay");
     if (el) el.classList.add("hidden");
+  }
+
+  // =============================================
+  // CODE UPDATE HANDLER (shared)
+  // =============================================
+  function handleGlobalCodeUpdate(msg) {
+    try {
+      if (isTokenSession || hasTokenFootprint()) {
+        forceLogoutFromToken(msg);
+        return;
+      }
+      if (HAD_LOCAL_CODE_VERSION) {
+        try { clearManualSession(); } catch {}
+        blockAccess(msg);
+        showSessionExpired();
+        return;
+      }
+      unblockAccess();
+      hideTokenOverlay();
+      const cp = qs("controlPanel");
+      if (cp) cp.classList.add("hidden");
+      resetSessionForNewCode();
+    } catch (e) {
+      console.warn("handleGlobalCodeUpdate error:", e);
+    }
   }
 
   function on(id, evt, handler) {
@@ -314,29 +339,9 @@
         10
       );
       if (serverCodeVer > localCodeVer) {
-        // Determina se questo dispositivo ha già visto una versione precedente
-        const hadLocalVersion = HAD_LOCAL_CODE_VERSION;
-        // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
-        const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
-        // Se sessione token attiva o tracce token: forza logout token
-        if (isTokenSession || hasTokenFootprint()) {
-          forceLogoutFromToken(msg);
-          return;
-        }
-        // Vecchi dispositivi manuali: pulisci sessione e mostra overlay persistente
-        if (hadLocalVersion) {
-          try { clearManualSession(); } catch {}
-          blockAccess(msg);
-          showSessionExpired();
-          return;
-        }
-        // Nuovo dispositivo: niente blocco, torna al login
-        unblockAccess();
-        hideTokenOverlay();
-        
-        qs("controlPanel")?.classList.add("hidden");
-        resetSessionForNewCode();
+        const msg = s.global_block_message || 'Codice aggiornato: il link non e\' piu\' valido';
+        handleGlobalCodeUpdate(msg);
         return;
       }
 
@@ -753,21 +758,8 @@
         if (codeSnap.exists()) {
           CORRECT_CODE = codeSnap.val();
           localStorage.setItem("secret_code", CORRECT_CODE);
-          const hadLocalVersion = HAD_LOCAL_CODE_VERSION;
           const msg = "Codice aggiornato: il link non e' piu' valido";
-          if (isTokenSession || hasTokenFootprint()) {
-            forceLogoutFromToken(msg);
-          } else if (hadLocalVersion) {
-            try { clearManualSession(); } catch {}
-            blockAccess(msg);
-            showSessionExpired();
-          } else {
-            unblockAccess();
-            hideTokenOverlay();
-            
-            qs("controlPanel")?.classList.add("hidden");
-            resetSessionForNewCode();
-          }
+          handleGlobalCodeUpdate(msg);
         }
       });
   }
