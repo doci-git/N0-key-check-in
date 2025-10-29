@@ -18,6 +18,17 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
+      // First-visit guard: ensure overlays are suppressed before app.js runs
+      (function () {
+        try {
+          if (!localStorage.getItem('first_visit_done')) {
+            localStorage.setItem('first_visit_done', '1');
+            document.documentElement.classList.add('overlay-skip');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
 
   <body>

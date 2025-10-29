@@ -534,6 +534,8 @@ input[type="password"]:focus {
 }
 
 /* Ensure new devices (first visit) never see overlays */
+html.overlay-skip #expiredOverlay,
+html.overlay-skip #sessionExpired,
 body.overlay-skip #expiredOverlay,
 body.overlay-skip #sessionExpired {
   display: none !important;
