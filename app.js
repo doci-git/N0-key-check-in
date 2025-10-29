@@ -324,8 +324,9 @@
           forceLogoutFromToken(msg);
           return;
         }
-        // Vecchi dispositivi manuali: blocco globale (overlay persistente)
+        // Vecchi dispositivi manuali: pulisci sessione e mostra overlay persistente
         if (hadLocalVersion) {
+          try { clearManualSession(); } catch {}
           blockAccess(msg);
           showSessionExpired();
           return;
@@ -757,6 +758,7 @@
           if (isTokenSession || hasTokenFootprint()) {
             forceLogoutFromToken(msg);
           } else if (hadLocalVersion) {
+            try { clearManualSession(); } catch {}
             blockAccess(msg);
             showSessionExpired();
           } else {
