@@ -303,21 +303,27 @@
         10
       );
       if (serverUnblockVer > localUnblockVer) {
-        localStorage.setItem(UNBLOCK_VERSION_KEY, String(serverUnblockVer));
-        unblockAccess();
-        // cancella eventuale lockout locale e contatore tentativi
-        localStorage.removeItem("login_lock_until");
-        localStorage.removeItem("login_attempts");
-        qs("expiredOverlay")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
-        qs("controlPanel")?.classList.add("hidden");
-        showAuthForm();
-        updateDoorVisibility();
-        showNotification(
-          s.global_unblock_message ||
-            "Session restored. Please enter the access code."
+        const lastCodeUpdateTs = parseInt(
+          s.last_code_update || localStorage.getItem("last_code_update") || "0",
+          10
         );
-        updateLockUI();
+        if (serverUnblockVer > lastCodeUpdateTs) {
+          localStorage.setItem(UNBLOCK_VERSION_KEY, String(serverUnblockVer));
+          unblockAccess();
+          // cancella eventuale lockout locale e contatore tentativi
+          localStorage.removeItem("login_lock_until");
+          localStorage.removeItem("login_attempts");
+          qs("expiredOverlay")?.classList.add("hidden");
+          qs("sessionExpired")?.classList.add("hidden");
+          qs("controlPanel")?.classList.add("hidden");
+          showAuthForm();
+          updateDoorVisibility();
+          showNotification(
+            s.global_unblock_message ||
+              "Sessione ripristinata. Inserisci il codice per accedere."
+          );
+          updateLockUI();
+        }
       }
     });
   }
