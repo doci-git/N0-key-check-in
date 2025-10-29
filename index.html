@@ -52,6 +52,24 @@
       <!-- <button id="toggleAdmin" class="admin-toggle" style="bottom:0px; position: absolute; left: 0px;">⚙️</button> -->
     </div>
 
+    <!-- Token-only overlay (does not affect manual overlay) -->
+    <div id="tokenExpiredOverlay" class="expired-overlay hidden">
+      <i
+        class="fas fa-shield-alt"
+        style="font-size: 4rem; margin-bottom: 20px; color: #ff5a5f"
+      ></i>
+      <h2>Secure Link Expired</h2>
+      <p id="tokenExpiredText">The secure access link is no longer valid.</p>
+
+      <a
+        id="tokenAssistBtn"
+        class="btn btn-whatsapp"
+        href="https://api.whatsapp.com/send?phone=+393898883634&text=Hi, I need a new access link"
+      >
+        <i class="fab fa-whatsapp"></i> Request New Link
+      </a>
+    </div>
+
     <div class="container"  id="test2">
       <div class="card fade-in">
         <div class="header">

@@ -126,6 +126,31 @@
     }
   }
 
+  // Overlay helpers: keep token/manual overlays independent
+  function showManualOverlay() {
+    qs("expiredOverlay")?.classList.remove("hidden");
+    qs("controlPanel")?.classList.add("hidden");
+    qs("sessionExpired")?.classList.remove("hidden");
+  }
+
+  function hideManualOverlay() {
+    hideTokenOverlay();
+    
+  }
+
+  function showTokenOverlay(message) {
+    const el = qs("tokenExpiredOverlay");
+    const txt = document.getElementById("tokenExpiredText");
+    if (txt && message) txt.textContent = message;
+    if (el) el.classList.remove("hidden");
+    qs("controlPanel")?.classList.add("hidden");
+  }
+
+  function hideTokenOverlay() {
+    const el = qs("tokenExpiredOverlay");
+    if (el) el.classList.add("hidden");
+  }
+
   function on(id, evt, handler) {
     const el = qs(id);
     if (el) el.addEventListener(evt, handler);
@@ -307,8 +332,8 @@
         }
         // Nuovo dispositivo: niente blocco, torna al login
         unblockAccess();
-        qs("expiredOverlay")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
+        hideTokenOverlay();
+        
         qs("controlPanel")?.classList.add("hidden");
         resetSessionForNewCode();
         return;
@@ -326,8 +351,8 @@
         // cancella eventuale lockout locale e contatore tentativi
         localStorage.removeItem("login_lock_until");
         localStorage.removeItem("login_attempts");
-        qs("expiredOverlay")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
+        hideTokenOverlay();
+        
         qs("controlPanel")?.classList.add("hidden");
         showAuthForm();
         updateDoorVisibility();
@@ -411,14 +436,11 @@
           // hash mismatch => considera scaduta
           clearTokenUsageStart(t);
           try { forceLogoutFromToken("Sessione token non valida"); } catch {}
-          // Nascondi pannello e mostra overlay
-          qs("controlPanel")?.classList.add("hidden");
+          // Token session invalid -> token overlay only
           if (canShowOverlay()) {
-            qs("expiredOverlay")?.classList.remove("hidden");
-            qs("sessionExpired")?.classList.remove("hidden");
+            showTokenOverlay("Sessione token non valida");
           } else {
-            qs("expiredOverlay")?.classList.add("hidden");
-            qs("sessionExpired")?.classList.add("hidden");
+            hideTokenOverlay();
           }
           return true;
         }
@@ -426,13 +448,10 @@
         if (mins >= TOKEN_LIMIT_MINUTES) {
           clearTokenUsageStart(t);
           try { forceLogoutFromToken("Sessione token scaduta"); } catch {}
-          qs("controlPanel")?.classList.add("hidden");
           if (canShowOverlay()) {
-            qs("expiredOverlay")?.classList.remove("hidden");
-            qs("sessionExpired")?.classList.remove("hidden");
+            showTokenOverlay("Sessione token scaduta");
           } else {
-            qs("expiredOverlay")?.classList.add("hidden");
-            qs("sessionExpired")?.classList.add("hidden");
+            hideTokenOverlay();
           }
           return true;
         }
@@ -476,18 +495,14 @@
   function showSessionExpired() {
     // On first-visit session, suppress overlay to avoid black screen
     if (!canShowOverlay()) {
-      qs("expiredOverlay")?.classList.add("hidden");
-      qs("controlPanel")?.classList.add("hidden");
-      qs("sessionExpired")?.classList.add("hidden");
+      hideManualOverlay();
       return;
     }
     if (isTokenSession) return; // overlay solo per sessioni manuali
     if (timeCheckInterval) clearInterval(timeCheckInterval);
     if (codeCheckInterval) clearInterval(codeCheckInterval);
 
-    qs("expiredOverlay")?.classList.remove("hidden");
-    qs("controlPanel")?.classList.add("hidden");
-    qs("sessionExpired")?.classList.remove("hidden");
+    showManualOverlay();
     qs("test2") && (qs("test2").style.display = "none");
 
     DEVICES.forEach((device) => {
@@ -746,8 +761,8 @@
             forceLogoutFromToken(msg);
           } else {
             unblockAccess();
-            qs("expiredOverlay")?.classList.add("hidden");
-            qs("sessionExpired")?.classList.add("hidden");
+            hideTokenOverlay();
+            
             qs("controlPanel")?.classList.add("hidden");
             resetSessionForNewCode();
           }
@@ -931,6 +946,7 @@
         .once("value");
       if (!snapshot.exists()) {
         try { forceLogoutFromToken("Invalid token"); } catch {}
+        showTokenOverlay("Invalid token");
         maybeCleanUrl();
         return false;
       }
@@ -941,12 +957,14 @@
       if (isTokenDeviceBlocked(token)) {
         const r = localStorage.getItem(`token_device_reason_${token}`) || "Sessione token scaduta su questo dispositivo";
         try { forceLogoutFromToken(r); } catch {}
+        showTokenOverlay(r);
         maybeCleanUrl();
         return false;
       }
       const isValid = validateSecureToken(linkData);
       if (!isValid.valid) {
         try { forceLogoutFromToken(isValid.reason || "Access blocked"); } catch {}
+        showTokenOverlay(isValid.reason || "Access blocked");
         maybeCleanUrl();
         return false;
       }
@@ -963,8 +981,7 @@
       // Assicurati che eventuali overlay di scadenza non restino visibili
       try {
         unblockAccess();
-        qs("expiredOverlay")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
+        hideTokenOverlay();
       } catch {}
 
       showTokenNotification(isValid.remainingUses, !!currentTokenCustomCode);
@@ -976,6 +993,7 @@
     } catch (error) {
       console.error("Token verification error:", error);
       try { forceLogoutFromToken("Verification error"); } catch {}
+      showTokenOverlay("Verification error");
       maybeCleanUrl();
       return false;
     }
@@ -1109,7 +1127,8 @@
     try {
       showTokenError(reason);
     } catch {}
-    showSessionExpired();
+    // Token-only overlay to avoid affecting manual overlay state
+    showTokenOverlay(reason);
     stopTokenRealtimeListener();
   }
 
@@ -1370,8 +1389,8 @@
 
     // Assicurati di nascondere eventuali overlay di scadenza
     try {
-      qs("expiredOverlay")?.classList.add("hidden");
-      qs("sessionExpired")?.classList.add("hidden");
+      hideTokenOverlay();
+      
       unblockAccess();
       // Once logged in, allow overlays to show on expiry
       document.documentElement.classList.remove("overlay-skip");
@@ -1417,8 +1436,8 @@
         // Avvia il timer di utilizzo per sessione token dopo submit
         if (currentTokenId) await setTokenUsageStartTime(currentTokenId);
         // Nascondi qualsiasi overlay di scadenza eventualmente rimasto
-        qs("expiredOverlay")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
+        hideTokenOverlay();
+        
         unblockAccess();
         // Once validated, allow overlays to show on token expiry
         document.documentElement.classList.remove("overlay-skip");
@@ -1442,8 +1461,8 @@
         localStorage.setItem(FIRST_VISIT_KEY, "1");
         if (!HAD_TOKEN_PARAM) {
           document.body.classList.add("overlay-skip");
-          qs("expiredOverlay")?.classList.add("hidden");
-          qs("sessionExpired")?.classList.add("hidden");
+          hideTokenOverlay();
+          
         }
       }
     } catch {}
@@ -1560,8 +1579,8 @@
     const imp = qs("important");
     if (imp) imp.style.display = "none";
     // assicurati che eventuali overlay non coprano il pannello
-    qs("expiredOverlay")?.classList.add("hidden");
-    qs("sessionExpired")?.classList.add("hidden");
+    hideTokenOverlay();
+    
     const info = qs("checkinTimeInfo");
     if (info) info.style.display = "block";
     updateCheckinTimeDisplay();
