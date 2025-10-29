@@ -533,6 +533,12 @@ input[type="password"]:focus {
   color: var(--text-secondary);
 }
 
+/* Ensure new devices (first visit) never see overlays */
+body.overlay-skip #expiredOverlay,
+body.overlay-skip #sessionExpired {
+  display: none !important;
+}
+
 /* Confirmation popup styles */
 .confirmation-popup {
   display: none;

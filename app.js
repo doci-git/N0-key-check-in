@@ -21,6 +21,7 @@
   const CODE_VERSION_KEY = "code_version";
   const KEEP_TOKEN_IN_URL = true; // mantieni il token nell'URL dopo la verifica
   const UNBLOCK_VERSION_KEY = "unblock_version";
+  const FIRST_VISIT_KEY = "first_visit_done";
 
   // Configurazione dispositivi Shelly (immutabile)
   const DEVICES = Object.freeze([
@@ -1365,6 +1366,16 @@
   // =============================================
   async function init() {
     console.log("Inizializzazione app.");
+
+    // First visit: suppress any overlay for brand new devices
+    try {
+      if (!localStorage.getItem(FIRST_VISIT_KEY)) {
+        localStorage.setItem(FIRST_VISIT_KEY, "1");
+        document.body.classList.add("overlay-skip");
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+      }
+    } catch {}
 
     const firebaseSettings = await loadSettingsFromFirebase();
     if (firebaseSettings) applyFirebaseSettings(firebaseSettings);
