@@ -23,6 +23,7 @@
   const UNBLOCK_VERSION_KEY = "unblock_version";
   const FIRST_VISIT_KEY = "first_visit_done";
   const HAD_TOKEN_PARAM = new URLSearchParams(location.search).has("token");
+  const HAD_LOCAL_CODE_VERSION = localStorage.getItem(CODE_VERSION_KEY) !== null;
 
   // Configurazione dispositivi Shelly (immutabile)
   const DEVICES = Object.freeze([
@@ -289,7 +290,7 @@
       );
       if (serverCodeVer > localCodeVer) {
         // Determina se questo dispositivo ha già visto una versione precedente
-        const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
+        const hadLocalVersion = HAD_LOCAL_CODE_VERSION;
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
         const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
@@ -736,7 +737,7 @@
         if (codeSnap.exists()) {
           CORRECT_CODE = codeSnap.val();
           localStorage.setItem("secret_code", CORRECT_CODE);
-          const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
+          const hadLocalVersion = HAD_LOCAL_CODE_VERSION;
           const msg = "Codice aggiornato: il link non e' piu' valido";
           if (hadLocalVersion) {
             blockAccess(msg);
