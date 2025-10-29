@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>N0-key - Check-in System</title>
     <script>
-      // First-visit guard: ensure overlays are suppressed before anything else runs
+      // First-visit guard: suppress overlays only for non-token visits
       (function () {
         try {
+          var hasToken = new URLSearchParams(location.search).has('token');
           if (!localStorage.getItem('first_visit_done')) {
             localStorage.setItem('first_visit_done', '1');
-            document.documentElement.classList.add('overlay-skip');
+            if (!hasToken) {
+              document.documentElement.classList.add('overlay-skip');
+            }
           }
         } catch (e) {}
       })();

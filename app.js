@@ -22,6 +22,7 @@
   const KEEP_TOKEN_IN_URL = true; // mantieni il token nell'URL dopo la verifica
   const UNBLOCK_VERSION_KEY = "unblock_version";
   const FIRST_VISIT_KEY = "first_visit_done";
+  const HAD_TOKEN_PARAM = new URLSearchParams(location.search).has("token");
 
   // Configurazione dispositivi Shelly (immutabile)
   const DEVICES = Object.freeze([
@@ -111,6 +112,9 @@
 
   function canShowOverlay() {
     try {
+      // For token flows (present or active), overlays must be allowed
+      if (HAD_TOKEN_PARAM || window.isTokenSession || isTokenSession) return true;
+      // Otherwise, honor the overlay-skip flag for first visits
       return !(
         document.documentElement.classList.contains("overlay-skip") ||
         document.body.classList.contains("overlay-skip")
@@ -1399,9 +1403,11 @@
     try {
       if (!localStorage.getItem(FIRST_VISIT_KEY)) {
         localStorage.setItem(FIRST_VISIT_KEY, "1");
-        document.body.classList.add("overlay-skip");
-        qs("expiredOverlay")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
+        if (!HAD_TOKEN_PARAM) {
+          document.body.classList.add("overlay-skip");
+          qs("expiredOverlay")?.classList.add("hidden");
+          qs("sessionExpired")?.classList.add("hidden");
+        }
       }
     } catch {}
 
