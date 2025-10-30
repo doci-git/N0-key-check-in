@@ -902,8 +902,7 @@
         try {
           blockTokenOnly("Invalid token", token);
         } catch {}
-        // FIXED: Don't show session expired immediately for new devices
-        // Only show auth form for invalid tokens
+        // FIXED: Show auth form for invalid tokens instead of expired overlay
         showAuthForm();
         maybeCleanUrl();
         return false;
@@ -1395,6 +1394,10 @@
   async function init() {
     console.log("Inizializzazione app.");
 
+    // FIXED: Hide expired overlays immediately on startup
+    qs("expiredOverlay")?.classList.add("hidden");
+    qs("sessionExpired")?.classList.add("hidden");
+
     const firebaseSettings = await loadSettingsFromFirebase();
     if (firebaseSettings) applyFirebaseSettings(firebaseSettings);
 
@@ -1410,49 +1413,25 @@
     setupSettingsListener();
     monitorFirebaseConnection();
 
-    // BLOCCO PERSISTENTE PRIMA DI TUTTO
+    // BLOCCO PERSISTENTE - FIXED: Only show expired overlay if explicitly blocked
     const isBlocked = localStorage.getItem("block_manual_login") === "1";
     if (isBlocked) {
       isTokenSession = false;
       window.isTokenSession = false;
       showSessionExpired();
+      return; // Stop here if blocked
     }
 
-    // TOKEN prima della sessione manuale - FIXED: Handle token first but don't auto-show expired overlay
+    // TOKEN handling
     const tokenHandled = await handleSecureToken();
-
-    // If token was successfully handled, it will show auth form automatically
-    // If token wasn't handled (invalid/expired), it will also show auth form
 
     setupTokenUI();
 
     // If we have a valid token session, unblock access
     if (isTokenSession) unblockAccess();
 
-    // Only show expired overlay if manually blocked AND no valid token session
-    if (isBlocked && !isTokenSession) {
-      return;
-    }
-
-    // Auto-accesso se token già validato su questo dispositivo
-    if (isTokenSession) {
-      const tok =
-        currentTokenId || new URLSearchParams(location.search).get("token");
-      try {
-        if (tok && localStorage.getItem(`token_ok_${tok}`) === "1") {
-          showControlPanel();
-        } else {
-          // FIXED: Always show auth form for token sessions that haven't been validated yet
-          showAuthForm();
-        }
-      } catch {
-        // FIXED: Fallback to auth form on error
-        showAuthForm();
-      }
-    }
-
-    // Se non bloccato e senza token: UI manuale
-    if (!isTokenSession && localStorage.getItem("block_manual_login") !== "1") {
+    // FIXED: For normal links, always start with auth form unless we have a valid session
+    if (!isTokenSession) {
       const expired = await checkTimeLimit();
       if (!expired) {
         const startTime = getStorage("usage_start_time");
@@ -1539,7 +1518,7 @@
     if (bc) bc.style.display = "block";
     const imp = qs("important");
     if (imp) imp.style.display = "block";
-    // Hide expired overlays when showing auth form
+    // FIXED: Explicitly hide expired overlays
     qs("expiredOverlay")?.classList.add("hidden");
     qs("sessionExpired")?.classList.add("hidden");
   }
