@@ -1427,6 +1427,18 @@
 
     setupTokenUI();
 
+    // Normal link (no token): never keep a persistent block
+    try {
+      const urlTok = new URLSearchParams(location.search).get("token");
+      if (!isTokenSession && !urlTok) {
+        localStorage.removeItem("block_manual_login");
+        localStorage.removeItem("blocked_reason");
+        localStorage.removeItem("blocked_token");
+        unblockAccess();
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+      }
+    } catch {}
     // If we have a valid token session, unblock access
     if (isTokenSession) unblockAccess();
 
