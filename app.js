@@ -710,6 +710,11 @@
     qs("btnCheckCode") && (qs("btnCheckCode").style.display = "block");
     qs("important") && (qs("important").style.display = "block");
 
+    try {
+      unblockAccess();
+      qs("expiredOverlay")?.classList.add("hidden");
+      qs("sessionExpired")?.classList.add("hidden");
+    } catch {}
     showNotification(
       "Il codice di accesso è stato aggiornato. Inserisci il nuovo codice."
     );
@@ -1043,7 +1048,7 @@
     stopTokenRealtimeListener();
   }
 
-  function forceLogoutFromToken(reason = "Link non più valido") {
+  function forceLogoutFromToken(reason = "Link non è più valido") {
     isTokenSession = false;
     window.isTokenSession = false;
     clearManualSession();
@@ -1248,6 +1253,21 @@
     const firebaseSettings = await loadSettingsFromFirebase();
     if (firebaseSettings) applyFirebaseSettings(firebaseSettings);
 
+    // Applica subito eventuale ripristino sessione (senza attendere listener)
+    try {
+      const serverUnblockVer = parseInt((firebaseSettings && firebaseSettings.session_reset_version) || 0, 10);
+      const localUnblockVer = parseInt(localStorage.getItem("unblock_version") || "0", 10);
+      if (serverUnblockVer > localUnblockVer) {
+        localStorage.setItem("unblock_version", String(serverUnblockVer));
+        unblockAccess();
+        qs("expiredOverlay")?.classList.add("hidden");
+        qs("sessionExpired")?.classList.add("hidden");
+        qs("controlPanel")?.classList.add("hidden");
+        showAuthForm();
+        updateDoorVisibility();
+        showNotification((firebaseSettings && firebaseSettings.global_unblock_message) || "Sessione ripristinata. Inserisci il codice per accedere.");
+      }
+    } catch {}
     if (isSessionStuck()) console.warn("Rilevata possibile sessione bloccata");
 
     const savedCodeVersion =

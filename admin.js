@@ -1,4 +1,4 @@
-﻿
+
 (() => {
   ("use strict");
 
@@ -1169,7 +1169,7 @@
           await database.ref("settings").update({
             session_reset_version: Date.now(),
             global_unblock_message:
-              "Sessioni ripristinate dall'Amministratore � ricarica la pagina",
+              "Sessioni ripristinate dall'Amministratore: ricarica la pagina",
           });
           alertOnce("Tutte le sessioni sono state ripristinate.");
         } catch (e) {
