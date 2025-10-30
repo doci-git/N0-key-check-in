@@ -228,10 +228,7 @@
     }
     if (settings?.max_login_attempts) {
       MAX_LOGIN_ATTEMPTS = parseInt(settings.max_login_attempts, 10);
-      localStorage.setItem(
-        "max_login_attempts",
-        String(MAX_LOGIN_ATTEMPTS)
-      );
+      localStorage.setItem("max_login_attempts", String(MAX_LOGIN_ATTEMPTS));
     }
     if (settings?.lockout_minutes) {
       LOCKOUT_MINUTES = parseInt(settings.lockout_minutes, 10);
@@ -275,7 +272,9 @@
         const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
-        const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
+        const msg =
+          s.global_block_message ||
+          "Codice aggiornato: il link non e' piu' valido";
         // Vecchi dispositivi: blocco globale (main page) con overlay persistente
         if (hadLocalVersion) {
           blockAccess(msg);
@@ -392,7 +391,9 @@
         if (calc !== hs) {
           // hash mismatch => considera scaduta
           clearTokenUsageStart(t);
-          try { forceLogoutFromToken("Sessione token non valida"); } catch {}
+          try {
+            forceLogoutFromToken("Sessione token non valida");
+          } catch {}
           // Nascondi pannello e mostra overlay
           qs("controlPanel")?.classList.add("hidden");
           qs("expiredOverlay")?.classList.remove("hidden");
@@ -402,7 +403,9 @@
         const mins = (Date.now() - parseInt(ts, 10)) / (1000 * 60);
         if (mins >= TOKEN_LIMIT_MINUTES) {
           clearTokenUsageStart(t);
-          try { forceLogoutFromToken("Sessione token scaduta"); } catch {}
+          try {
+            forceLogoutFromToken("Sessione token scaduta");
+          } catch {}
           qs("controlPanel")?.classList.add("hidden");
           qs("expiredOverlay")?.classList.remove("hidden");
           qs("sessionExpired")?.classList.remove("hidden");
@@ -701,7 +704,8 @@
         if (codeSnap.exists()) {
           CORRECT_CODE = codeSnap.val();
           localStorage.setItem("secret_code", CORRECT_CODE);
-          const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
+          const hadLocalVersion =
+            localStorage.getItem(CODE_VERSION_KEY) !== null;
           const msg = "Codice aggiornato: il link non e' piu' valido";
           if (hadLocalVersion) {
             blockAccess(msg);
@@ -898,7 +902,9 @@
         try {
           blockTokenOnly("Invalid token", token);
         } catch {}
-        showSessionExpired();
+        // FIXED: Don't show session expired immediately for new devices
+        // Only show auth form for invalid tokens
+        showAuthForm();
         maybeCleanUrl();
         return false;
       }
@@ -907,20 +913,27 @@
 
       // Se questo token è stato bloccato su questo dispositivo (es. tempo sessione scaduto), non riattivarlo su refresh
       if (isTokenDeviceBlocked(token)) {
-        const r = localStorage.getItem(`token_device_reason_${token}`) || "Sessione token scaduta su questo dispositivo";
+        const r =
+          localStorage.getItem(`token_device_reason_${token}`) ||
+          "Sessione token scaduta su questo dispositivo";
         showTokenError(r);
-        try { blockTokenOnly(r, token); } catch {}
-        showSessionExpired();
+        try {
+          blockTokenOnly(r, token);
+        } catch {}
+        // FIXED: Show auth form instead of expired overlay for blocked tokens
+        showAuthForm();
         maybeCleanUrl();
         return false;
       }
+
       const isValid = validateSecureToken(linkData);
       if (!isValid.valid) {
         showTokenError(isValid.reason);
         try {
           blockTokenOnly(isValid.reason || "Access blocked", token);
         } catch {}
-        showSessionExpired();
+        // FIXED: Show auth form instead of expired overlay for invalid tokens
+        showAuthForm();
         maybeCleanUrl();
         return false;
       }
@@ -934,6 +947,9 @@
       localStorage.removeItem("block_manual_login");
       localStorage.removeItem("blocked_token");
       localStorage.removeItem("blocked_reason");
+      // Clear any device block for this token on new validation
+      clearTokenDeviceBlock(token);
+
       // Assicurati che eventuali overlay di scadenza non restino visibili
       try {
         unblockAccess();
@@ -946,6 +962,9 @@
       maybeCleanUrl();
       startTokenExpirationCheck(linkData.expiration);
       startTokenRealtimeListener(token);
+
+      // FIXED: Always show auth form for token sessions, don't auto-show control panel
+      showAuthForm();
       return true;
     } catch (error) {
       console.error("Token verification error:", error);
@@ -953,7 +972,8 @@
       try {
         blockTokenOnly("Verification error", token);
       } catch {}
-      showSessionExpired();
+      // FIXED: Show auth form instead of expired overlay for verification errors
+      showAuthForm();
       maybeCleanUrl();
       return false;
     }
@@ -1162,8 +1182,6 @@
     setTimeout(() => n.parentElement && n.remove(), 5000);
   }
 
-  
-
   function showTokenError(reason) {
     const n = document.createElement("div");
     n.style.cssText = `
@@ -1209,7 +1227,10 @@
   // =============================================
   function isLoginLocked() {
     try {
-      const until = parseInt(localStorage.getItem("login_lock_until") || "0", 10);
+      const until = parseInt(
+        localStorage.getItem("login_lock_until") || "0",
+        10
+      );
       if (!Number.isFinite(until) || until <= 0) return false;
       if (Date.now() < until) return true;
       // lock scaduto -> pulizia
@@ -1226,7 +1247,11 @@
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const r = s % 60;
-    if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(r).padStart(2, "0")}s`;
+    if (h > 0)
+      return `${h}h ${String(m).padStart(2, "0")}m ${String(r).padStart(
+        2,
+        "0"
+      )}s`;
     return `${String(m).padStart(2, "0")}m ${String(r).padStart(2, "0")}s`;
   }
 
@@ -1246,8 +1271,7 @@
       if (!notice && input?.parentElement) {
         notice = document.createElement("div");
         notice.id = "lockNotice";
-        notice.style.cssText =
-          "margin-top:10px;color:#ff5a5f;font-weight:600;";
+        notice.style.cssText = "margin-top:10px;color:#ff5a5f;font-weight:600;";
         input.parentElement.insertAdjacentElement("afterend", notice);
       }
       if (notice) {
@@ -1255,9 +1279,13 @@
           localStorage.getItem("login_lock_until") || "0",
           10
         );
-        const remainingSec = Math.max(0, Math.floor((until - Date.now()) / 1000));
-        notice.innerHTML =
-          `<i class="fas fa-lock"></i> Too many incorrect attempts. Try again in ${secondsToHhMmSs(remainingSec)}.`;
+        const remainingSec = Math.max(
+          0,
+          Math.floor((until - Date.now()) / 1000)
+        );
+        notice.innerHTML = `<i class="fas fa-lock"></i> Too many incorrect attempts. Try again in ${secondsToHhMmSs(
+          remainingSec
+        )}.`;
       }
     } else {
       if (input) input.disabled = false;
@@ -1271,7 +1299,8 @@
 
   function incrementFailedAttempt() {
     try {
-      const attempts = parseInt(localStorage.getItem("login_attempts") || "0", 10) + 1;
+      const attempts =
+        parseInt(localStorage.getItem("login_attempts") || "0", 10) + 1;
       localStorage.setItem("login_attempts", String(attempts));
       const left = Math.max(0, MAX_LOGIN_ATTEMPTS - attempts);
       if (attempts >= MAX_LOGIN_ATTEMPTS) {
@@ -1389,12 +1418,18 @@
       showSessionExpired();
     }
 
-    // TOKEN prima della sessione manuale
-    await handleSecureToken();
+    // TOKEN prima della sessione manuale - FIXED: Handle token first but don't auto-show expired overlay
+    const tokenHandled = await handleSecureToken();
+
+    // If token was successfully handled, it will show auth form automatically
+    // If token wasn't handled (invalid/expired), it will also show auth form
+
     setupTokenUI();
+
+    // If we have a valid token session, unblock access
     if (isTokenSession) unblockAccess();
-    // Se il dispositivo è bloccato e non abbiamo una sessione token valida,
-    // interrompi qui per evitare che l'overlay venga nascosto da altre routine UI.
+
+    // Only show expired overlay if manually blocked AND no valid token session
     if (isBlocked && !isTokenSession) {
       return;
     }
@@ -1406,8 +1441,14 @@
       try {
         if (tok && localStorage.getItem(`token_ok_${tok}`) === "1") {
           showControlPanel();
+        } else {
+          // FIXED: Always show auth form for token sessions that haven't been validated yet
+          showAuthForm();
         }
-      } catch {}
+      } catch {
+        // FIXED: Fallback to auth form on error
+        showAuthForm();
+      }
     }
 
     // Se non bloccato e senza token: UI manuale
@@ -1498,6 +1539,9 @@
     if (bc) bc.style.display = "block";
     const imp = qs("important");
     if (imp) imp.style.display = "block";
+    // Hide expired overlays when showing auth form
+    qs("expiredOverlay")?.classList.add("hidden");
+    qs("sessionExpired")?.classList.add("hidden");
   }
 
   function setupTokenUI() {
