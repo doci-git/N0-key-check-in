@@ -267,14 +267,21 @@
         localStorage.getItem(CODE_VERSION_KEY) || "1",
         10
       );
+
+      // FIXED: Only block if this device had a previous version stored
+      // For new devices, don't block even if server version is higher
       if (serverCodeVer > localCodeVer) {
         // Determina se questo dispositivo ha già visto una versione precedente
         const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
+
         // Aggiorna versione locale
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
+        currentCodeVersion = serverCodeVer;
+
         const msg =
           s.global_block_message ||
           "Codice aggiornato: il link non e' piu' valido";
+
         // Vecchi dispositivi: blocco globale (main page) con overlay persistente
         if (hadLocalVersion) {
           blockAccess(msg);
@@ -286,12 +293,15 @@
           forceLogoutFromToken(msg);
           return;
         }
-        // Nuovo dispositivo: niente blocco, torna al login
+        // Nuovo dispositivo: niente blocco, solo aggiorna il codice
         unblockAccess();
         qs("expiredOverlay")?.classList.add("hidden");
         qs("sessionExpired")?.classList.add("hidden");
         qs("controlPanel")?.classList.add("hidden");
-        resetSessionForNewCode();
+        showAuthForm();
+        showNotification(
+          "Il codice di accesso è stato aggiornato. Inserisci il nuovo codice."
+        );
         return;
       }
 
@@ -707,6 +717,8 @@
           const hadLocalVersion =
             localStorage.getItem(CODE_VERSION_KEY) !== null;
           const msg = "Codice aggiornato: il link non e' piu' valido";
+
+          // FIXED: Same logic as in setupSettingsListener
           if (hadLocalVersion) {
             blockAccess(msg);
             showSessionExpired();
@@ -717,7 +729,10 @@
             qs("expiredOverlay")?.classList.add("hidden");
             qs("sessionExpired")?.classList.add("hidden");
             qs("controlPanel")?.classList.add("hidden");
-            resetSessionForNewCode();
+            showAuthForm();
+            showNotification(
+              "Il codice di accesso è stato aggiornato. Inserisci il nuovo codice."
+            );
           }
         }
       });
@@ -902,7 +917,6 @@
         try {
           blockTokenOnly("Invalid token", token);
         } catch {}
-        // FIXED: Show auth form for invalid tokens instead of expired overlay
         showAuthForm();
         maybeCleanUrl();
         return false;
@@ -919,7 +933,6 @@
         try {
           blockTokenOnly(r, token);
         } catch {}
-        // FIXED: Show auth form instead of expired overlay for blocked tokens
         showAuthForm();
         maybeCleanUrl();
         return false;
@@ -931,7 +944,6 @@
         try {
           blockTokenOnly(isValid.reason || "Access blocked", token);
         } catch {}
-        // FIXED: Show auth form instead of expired overlay for invalid tokens
         showAuthForm();
         maybeCleanUrl();
         return false;
@@ -962,7 +974,7 @@
       startTokenExpirationCheck(linkData.expiration);
       startTokenRealtimeListener(token);
 
-      // FIXED: Always show auth form for token sessions, don't auto-show control panel
+      // Always show auth form for token sessions, don't auto-show control panel
       showAuthForm();
       return true;
     } catch (error) {
@@ -971,7 +983,6 @@
       try {
         blockTokenOnly("Verification error", token);
       } catch {}
-      // FIXED: Show auth form instead of expired overlay for verification errors
       showAuthForm();
       maybeCleanUrl();
       return false;
@@ -1403,17 +1414,24 @@
 
     if (isSessionStuck()) console.warn("Rilevata possibile sessione bloccata");
 
+    // FIXED: Update currentCodeVersion from localStorage after loading settings
+    currentCodeVersion = parseInt(localStorage.getItem(CODE_VERSION_KEY)) || 1;
+
     const savedCodeVersion =
       parseInt(localStorage.getItem("code_version")) || 1;
     if (savedCodeVersion < currentCodeVersion) {
-      resetSessionForNewCode();
+      // FIXED: Don't reset session for new devices, just update the code
+      localStorage.setItem("code_version", String(currentCodeVersion));
+      showNotification(
+        "Il codice di accesso è stato aggiornato. Inserisci il nuovo codice."
+      );
     }
 
     setupEventListeners();
     setupSettingsListener();
     monitorFirebaseConnection();
 
-    // BLOCCO PERSISTENTE - FIXED: Only show expired overlay if explicitly blocked
+    // BLOCCO PERSISTENTE - Only show expired overlay if explicitly blocked
     const isBlocked = localStorage.getItem("block_manual_login") === "1";
     if (isBlocked) {
       isTokenSession = false;
@@ -1427,22 +1445,10 @@
 
     setupTokenUI();
 
-    // Normal link (no token): never keep a persistent block
-    try {
-      const urlTok = new URLSearchParams(location.search).get("token");
-      if (!isTokenSession && !urlTok) {
-        localStorage.removeItem("block_manual_login");
-        localStorage.removeItem("blocked_reason");
-        localStorage.removeItem("blocked_token");
-        unblockAccess();
-        qs("expiredOverlay")?.classList.add("hidden");
-        qs("sessionExpired")?.classList.add("hidden");
-      }
-    } catch {}
     // If we have a valid token session, unblock access
     if (isTokenSession) unblockAccess();
 
-    // FIXED: For normal links, always start with auth form unless we have a valid session
+    // FIXED: Simplified logic for normal links
     if (!isTokenSession) {
       const expired = await checkTimeLimit();
       if (!expired) {
