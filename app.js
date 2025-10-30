@@ -1250,6 +1250,11 @@
   async function init() {
     console.log("Inizializzazione app.");
 
+    // Nascondi overlay all'avvio; verrà mostrato se necessario
+    try {
+      qs("expiredOverlay")?.classList.add("hidden");
+      qs("sessionExpired")?.classList.add("hidden");
+    } catch {}
     const firebaseSettings = await loadSettingsFromFirebase();
     if (firebaseSettings) applyFirebaseSettings(firebaseSettings);
 
@@ -1280,24 +1285,19 @@
     setupSettingsListener();
     monitorFirebaseConnection();
 
-    // BLOCCO PERSISTENTE PRIMA DI TUTTO
-    const isBlocked = localStorage.getItem("block_manual_login") === "1";
-    if (isBlocked) {
-      isTokenSession = false;
-      window.isTokenSession = false;
-      showSessionExpired();
-    }
 
     // TOKEN prima della sessione manuale
     await handleSecureToken();
     setupTokenUI();
     if (isTokenSession) unblockAccess();
-    // Se il dispositivo è bloccato e non abbiamo una sessione token valida,
-    // interrompi qui per evitare che l'overlay venga nascosto da altre routine UI.
+    // BLOCCO PERSISTENTE (valutato dopo token)
+    const isBlocked = localStorage.getItem("block_manual_login") === "1";
     if (isBlocked && !isTokenSession) {
+      isTokenSession = false;
+      window.isTokenSession = false;
+      showSessionExpired();
       return;
     }
-
     // Auto-accesso se token già validato su questo dispositivo
     if (isTokenSession) {
       const tok =
