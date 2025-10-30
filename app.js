@@ -261,7 +261,7 @@
         localStorage.setItem(CODE_VERSION_KEY, String(serverCodeVer));
         const msg = s.global_block_message || "Codice aggiornato: il link non e' piu' valido";
         // Vecchi dispositivi: blocco globale (main page) con overlay persistente
-        if (hadLocalVersion) {
+        if (false) {
           blockAccess(msg);
           showSessionExpired();
           return;
@@ -683,7 +683,7 @@
           localStorage.setItem("secret_code", CORRECT_CODE);
           const hadLocalVersion = localStorage.getItem(CODE_VERSION_KEY) !== null;
           const msg = "Codice aggiornato: il link non e' piu' valido";
-          if (hadLocalVersion) {
+          if (false) {
             blockAccess(msg);
             showSessionExpired();
           } else if (hasTokenFootprint()) {
@@ -1293,10 +1293,21 @@
     // BLOCCO PERSISTENTE (valutato dopo token)
     const isBlocked = localStorage.getItem("block_manual_login") === "1";
     if (isBlocked && !isTokenSession) {
-      isTokenSession = false;
-      window.isTokenSession = false;
-      showSessionExpired();
-      return;
+      const br = localStorage.getItem("blocked_reason") || "";
+      const safe = /Codice aggiornato|accedi di nuovo|accesso di nuovo/i.test(br);
+      if (safe) {
+        try {
+          unblockAccess();
+          qs("expiredOverlay")?.classList.add("hidden");
+          qs("sessionExpired")?.classList.add("hidden");
+          showAuthForm();
+        } catch {}
+      } else {
+        isTokenSession = false;
+        window.isTokenSession = false;
+        showSessionExpired();
+        return;
+      }
     }
     // Auto-accesso se token già validato su questo dispositivo
     if (isTokenSession) {
