@@ -1,21 +1,21 @@
-
 (() => {
-  ("use strict");
+  "use strict";
 
   // =============================================
   // CONFIGURAZIONE E INIZIALIZZAZIONE
   // =============================================
-  // Your web app's Firebase configuration
   const firebaseConfig = {
-    apiKey: "AIzaSyD8oQsvmn7nyV2nYnExD-xw6gchwRJ0Bog",
-    authDomain: "multi-client-77378.firebaseapp.com",
+    apiKey: "AIzaSyCuy3Sak96soCla7b5Yb5wmkdVfMqAXmok",
+    authDomain: "check-in-4e0e9.firebaseapp.com",
     databaseURL:
-      "https://multi-client-77378-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "multi-client-77378",
-    storageBucket: "multi-client-77378.firebasestorage.app",
-    messagingSenderId: "654507957917",
-    appId: "1:654507957917:web:3be18327d2951774113e74",
+      "https://check-in-4e0e9-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "check-in-4e0e9",
+    storageBucket: "check-in-4e0e9.firebasestorage.app",
+    messagingSenderId: "723880990177",
+    appId: "1:723880990177:web:f002733b2cc2e50d172ea0",
+    measurementId: "G-H97GB9L4F5",
   };
+
   // Valori di fallback (possono essere sovrascritti da settings Firebase)
   let ADMIN_PASSWORD = "";
   const SHELLY_API_URL =
@@ -28,7 +28,8 @@
   const ADMIN_DEVICES = Object.freeze([
     {
       id: "e4b063f0c38c",
-      auth_key: "",
+      auth_key:
+        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenMainDoor",
       status_id: "mainDoorStatus",
       status_text_id: "mainDoorStatusText",
@@ -1169,7 +1170,7 @@
           await database.ref("settings").update({
             session_reset_version: Date.now(),
             global_unblock_message:
-              "Sessioni ripristinate dall'Amministratore: ricarica la pagina",
+              "Sessioni ripristinate dall'Amministratore � ricarica la pagina",
           });
           alertOnce("Tutte le sessioni sono state ripristinate.");
         } catch (e) {
@@ -1247,5 +1248,3 @@
     showResetError,
   });
 })();
-
-

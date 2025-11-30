@@ -187,13 +187,6 @@ input[type="password"]:focus {
   border-color: var(--text-muted);
 }
 
-/* Small inline button for copy actions */
-.btn-small {
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  margin-left: 8px;
-}
-
 .btn-whatsapp {
   background: var(--dark-border);
   box-shadow: var(--dark-bg);
@@ -378,6 +371,7 @@ input[type="password"]:focus {
 }
 
 .important p {
+  font-size: 1.2rem;
   color: var(--text-primary);
   line-height: 1.9;
   text-align: center;
@@ -531,14 +525,6 @@ input[type="password"]:focus {
   margin-bottom: 32px;
   max-width: 600px;
   color: var(--text-secondary);
-}
-
-/* Ensure new devices (first visit) never see overlays */
-html.overlay-skip #expiredOverlay,
-html.overlay-skip #sessionExpired,
-body.overlay-skip #expiredOverlay,
-body.overlay-skip #sessionExpired {
-  display: none !important;
 }
 
 /* Confirmation popup styles */
@@ -701,6 +687,13 @@ body.overlay-skip #sessionExpired {
 #recentLinksList button:hover {
     text-decoration: underline;
 }
+
+/* Small inline button for copy actions */
+.btn-small {
+  padding: 9px 20px;
+  font-size: 0.85rem;
+  margin-left: 8px;
+}
 /* .firebase-offline {
   opacity: 0.9;
 }
@@ -717,3 +710,5 @@ body.overlay-skip #sessionExpired {
   z-index: 10000;
   font-size: 12px;
 } */
+ 
+ 
