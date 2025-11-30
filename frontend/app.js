@@ -12,7 +12,7 @@ const firebaseConfig = {
   messagingSenderId: "314211443397",
   appId: "1:314211443397:web:76fcd26e997719fe9386ac",
   databaseURL:
-    "https://planning-with-ai-dbf8d.europe-west1.firebasedatabase.app/",
+    "https://planning-with-ai-dbf8d-default-rtdb.europe-west1.firebasedatabase.app/",
 };
   const DOOR_API_URL = "/api/shelly-control";
   const SECRET_KEY = "musart_secret_123_fixed_key";
