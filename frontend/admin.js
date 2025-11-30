@@ -1,17 +1,24 @@
+
 (() => {
-  "use strict";
+  ("use strict");
 
   // =============================================
   // CONFIGURAZIONE E INIZIALIZZAZIONE
   // =============================================
-  const firebaseConfig =
-    (window.RUNTIME_CONFIG && window.RUNTIME_CONFIG.FIREBASE_CONFIG) || {};
-
+  // Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCuaY2HQzUneKpHBXX-p1GaEjdI2tdgjso",
+  authDomain: "planning-with-ai-dbf8d.firebaseapp.com",
+  projectId: "planning-with-ai-dbf8d",
+  storageBucket: "planning-with-ai-dbf8d.firebasestorage.app",
+  messagingSenderId: "314211443397",
+  appId: "1:314211443397:web:76fcd26e997719fe9386ac",
+  databaseURL:
+    "https://planning-with-ai-dbf8d.europe-west1.firebasedatabase.app/",
+};
   // Valori di fallback (possono essere sovrascritti da settings Firebase)
   let ADMIN_PASSWORD = "";
-  const SHELLY_CONTROL_URL =
-    (window.RUNTIME_CONFIG && window.RUNTIME_CONFIG.SHELLY_FUNCTION_URL) ||
-    "/.netlify/functions/shelly-control";
+  const SHELLY_FUNCTION_URL = "/api/shelly-control";
 
   // Segreto per hash: può essere sovrascritto da settings/admin_secret
   let ADMIN_SECRET = "admin_local_secret_strong_!@#2025";
@@ -54,7 +61,7 @@
     },
   ]);
 
-  // Inizializza Firebase (se non già inizializzato altrove)
+  // Inizializza Firebase (se non gi�� inizializzato altrove)
   if (!firebase.apps || firebase.apps.length === 0) {
     firebase.initializeApp(firebaseConfig);
   }
@@ -65,7 +72,6 @@
   } catch (e) {
     console.warn("Impossibile impostare la persistenza Auth:", e);
   }
-
   // =============================================
   // UTILS
   // =============================================
@@ -508,6 +514,24 @@
     return "link_" + Date.now() + "_" + Math.random().toString(36).slice(2, 11);
   }
 
+  function getGuestIndexUrl() {
+    try {
+      const { origin, pathname } = window.location;
+      const trimmedPath = pathname.replace(/\/+$/, "");
+      const adminRegex = /admin(?:\.html)?$/i;
+      if (adminRegex.test(trimmedPath)) {
+        return origin + trimmedPath.replace(adminRegex, "index.html");
+      }
+      const lastSlash = trimmedPath.lastIndexOf("/");
+      const basePath =
+        lastSlash >= 0 ? trimmedPath.slice(0, lastSlash + 1) : "/";
+      return origin + basePath + "index.html";
+    } catch (error) {
+      console.error("Impossibile determinare l'URL pubblico:", error);
+      return window.location.origin + "/index.html";
+    }
+  }
+
   async function generateSecureLink() {
     const expirationHours = parseInt(qs("linkExpiration")?.value || "0", 10);
     const maxUsage = parseInt(qs("linkUsage")?.value || "0", 10);
@@ -522,9 +546,7 @@
 
     const linkId = generateUniqueId();
     const expirationTime = Date.now() + expirationHours * 60 * 60 * 1000;
-    const baseUrl = window.location.origin + window.location.pathname;
-    const indexUrl = baseUrl.replace("admin.html", "index.html");
-    const secureLink = `${indexUrl}?token=${linkId}`;
+    const secureLink = `${getGuestIndexUrl()}?token=${linkId}`;
     const out = qs("generatedSecureLink");
     if (out) out.value = secureLink;
 
@@ -657,10 +679,7 @@
       Math.floor((link.expiration - Date.now()) / (1000 * 60 * 60))
     );
     const usageText = `${link.usedCount}/${link.maxUsage} utilizzi`;
-    const linkUrl =
-      window.location.origin +
-      window.location.pathname.replace("admin.html", "index.html") +
-      `?token=${link.id}`;
+    const linkUrl = `${getGuestIndexUrl()}?token=${link.id}`;
 
     let html = `
       <div style="font-size:11px;color:#666">Creato: ${fmtDateTime(
@@ -705,9 +724,7 @@
   }
 
   function copySecureLink(id) {
-    const baseUrl = window.location.origin + window.location.pathname;
-    const indexUrl = baseUrl.replace("admin.html", "index.html");
-    const link = `${indexUrl}?token=${id}`;
+    const link = `${getGuestIndexUrl()}?token=${id}`;
     const input = document.createElement("input");
     input.value = link;
     document.body.appendChild(input);
@@ -828,7 +845,7 @@
 
     try {
       const resp = await fetchWithTimeout(
-        SHELLY_CONTROL_URL,
+        SHELLY_FUNCTION_URL,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -841,27 +858,27 @@
         12000
       );
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
       const text = await resp.text();
-      let data = { ok: true };
-      if (text.trim() !== "") {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          /* risposta non JSON */
-        }
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        /* risposta non JSON */
       }
 
-      if (data && data.ok) {
-        handleDoorSuccess(device, resultDiv, "Porta aperta con successo");
-      } else {
-        handleDoorSuccess(
-          device,
-          resultDiv,
-          "Porta aperta (risposta non standard)",
-          text
-        );
+      if (!resp.ok || !data.success) {
+        const message =
+          (data && data.message) ||
+          `HTTP ${resp.status} ${resp.statusText || ""}`.trim();
+        throw new Error(message);
       }
+
+      handleDoorSuccess(
+        device,
+        resultDiv,
+        "Porta aperta con successo",
+        text || ""
+      );
     } catch (error) {
       handleDoorError(device, resultDiv, error);
     } finally {
@@ -1153,7 +1170,7 @@
           await database.ref("settings").update({
             session_reset_version: Date.now(),
             global_unblock_message:
-              "Sessioni ripristinate dall'Amministratore � ricarica la pagina",
+              "Sessioni ripristinate dall'Amministratore: ricarica la pagina",
           });
           alertOnce("Tutte le sessioni sono state ripristinate.");
         } catch (e) {
@@ -1231,3 +1248,7 @@
     showResetError,
   });
 })();
+
+
+
+

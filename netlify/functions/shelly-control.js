@@ -9,19 +9,23 @@ const DEFAULT_DEVICES = [
     id: "e4b063f0c38c",
     envKey: "DEVICE1_KEY",
     channel: 0,
-    fallback: "",
+    fallback:
+      "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
   },
   {
     id: "34945478d595",
     envKey: "DEVICE2_KEY",
     channel: 0,
-    fallback: "",
+    fallback:
+      "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
   },
   {
     id: "3494547ab161",
     envKey: "DEVICE3_KEY",
     channel: 0,
-    fallback: process.env.DEVICE3_KEY || "",
+    fallback:
+      process.env.DEVICE2_KEY ||
+      "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
   },
   {
     id: "placeholder_id_2",

@@ -1,12 +1,10 @@
 {
-  "name": "n0-key-check-in",
+  "name": "door-control-app",
   "version": "1.0.0",
-  "private": true,
   "scripts": {
-    "build": "node scripts/generate-runtime-config.js",
-    "start": "netlify dev"
+    "dev": "netlify dev"
   },
   "dependencies": {
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.6.7"
   }
 }
