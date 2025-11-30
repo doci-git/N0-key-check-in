@@ -32,5 +32,7 @@ Keep this snippet out of version control and inject values via your hosting plat
 
 ## Deploying to Netlify
 1) Set environment variables in Netlify: `DEVICE1_KEY`, `DEVICE2_KEY`, `DEVICE3_KEY`, `DEVICE4_KEY` (and optional `SHELLY_API_URL`).
-2) Copy `runtime-config.example.js` to `runtime-config.js` during deploy (fill with your Firebase config and optional `SHELLY_FUNCTION_URL`). Ensure this file is uploaded next to `index.html`.
-3) Deploy with the provided `netlify.toml` (functions path is `netlify/functions`). No build step is required; Netlify will install `node-fetch` from `package.json` for the function.
+2) Set Firebase env vars in Netlify: `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_DATABASE_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_APP_ID`, optional `FIREBASE_MEASUREMENT_ID`, and optional `SHELLY_FUNCTION_URL`.
+3) Deploy with the provided `netlify.toml` (functions path is `netlify/functions`). The build command runs `npm run build`, which generates `runtime-config.js` from those env vars and places it next to `index.html`.
+
+Local dev: copy `runtime-config.example.js` to `runtime-config.js` and fill with your values. Do not commit `runtime-config.js`.
