@@ -29,3 +29,8 @@ Example:
 <script src="runtime-config.js"></script>
 ```
 Keep this snippet out of version control and inject values via your hosting platform (e.g., Netlify HTML rewrite or server-side templating).
+
+## Deploying to Netlify
+1) Set environment variables in Netlify: `DEVICE1_KEY`, `DEVICE2_KEY`, `DEVICE3_KEY`, `DEVICE4_KEY` (and optional `SHELLY_API_URL`).
+2) Copy `runtime-config.example.js` to `runtime-config.js` during deploy (fill with your Firebase config and optional `SHELLY_FUNCTION_URL`). Ensure this file is uploaded next to `index.html`.
+3) Deploy with the provided `netlify.toml` (functions path is `netlify/functions`). No build step is required; Netlify will install `node-fetch` from `package.json` for the function.
