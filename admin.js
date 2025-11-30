@@ -4,17 +4,8 @@
   // =============================================
   // CONFIGURAZIONE E INIZIALIZZAZIONE
   // =============================================
-  const firebaseConfig = {
-    apiKey: "AIzaSyCuy3Sak96soCla7b5Yb5wmkdVfMqAXmok",
-    authDomain: "check-in-4e0e9.firebaseapp.com",
-    databaseURL:
-      "https://check-in-4e0e9-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "check-in-4e0e9",
-    storageBucket: "check-in-4e0e9.firebasestorage.app",
-    messagingSenderId: "723880990177",
-    appId: "1:723880990177:web:f002733b2cc2e50d172ea0",
-    measurementId: "G-H97GB9L4F5",
-  };
+  const firebaseConfig =
+    (window.RUNTIME_CONFIG && window.RUNTIME_CONFIG.FIREBASE_CONFIG) || {};
 
   // Valori di fallback (possono essere sovrascritti da settings Firebase)
   let ADMIN_PASSWORD = "";

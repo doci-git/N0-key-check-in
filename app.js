@@ -4,16 +4,8 @@
   // =============================================
   // CONFIGURAZIONE E INIZIALIZZAZIONE
   // =============================================
-  const firebaseConfig = {
-    apiKey: "AIzaSyD8oQsvmn7nyV2nYnExD-xw6gchwRJ0Bog",
-    authDomain: "multi-client-77378.firebaseapp.com",
-    databaseURL:
-      "https://multi-client-77378-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "multi-client-77378",
-    storageBucket: "multi-client-77378.firebasestorage.app",
-    messagingSenderId: "654507957917",
-    appId: "1:654507957917:web:3be18327d2951774113e74",
-  };
+  const firebaseConfig =
+    (window.RUNTIME_CONFIG && window.RUNTIME_CONFIG.FIREBASE_CONFIG) || {};
 
   const SHELLY_FUNCTION_URL =
     (window.RUNTIME_CONFIG && window.RUNTIME_CONFIG.SHELLY_FUNCTION_URL) ||
