@@ -20,9 +20,9 @@ Frontend now calls a Netlify Function so Shelly auth keys are kept in environmen
 Frontend no longer hardcodes Firebase keys. Provide them at runtime via `window.RUNTIME_CONFIG.FIREBASE_CONFIG`.
 
 ### Runtime config file
-- Copy `runtime-config.example.js` to `runtime-config.js` (keep `runtime-config.js` out of git).
+- Copy `frontend/runtime-config.example.js` to `frontend/runtime-config.js` (keep `runtime-config.js` out of git).
 - Fill in your Firebase keys and, if needed, `SHELLY_FUNCTION_URL`.
-- Ensure `runtime-config.js` is served before `app.js`/`admin.js` (already referenced in `index.html` and `admin.html`).
+- Ensure `runtime-config.js` is served before `app.js`/`admin.js` (already referenced in `frontend/index.html` and `frontend/admin.html`).
 
 Example:
 ```html
@@ -33,6 +33,6 @@ Keep this snippet out of version control and inject values via your hosting plat
 ## Deploying to Netlify
 1) Set environment variables in Netlify: `DEVICE1_KEY`, `DEVICE2_KEY`, `DEVICE3_KEY`, `DEVICE4_KEY` (and optional `SHELLY_API_URL`).
 2) Set Firebase env vars in Netlify: `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_DATABASE_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_APP_ID`, optional `FIREBASE_MEASUREMENT_ID`, and optional `SHELLY_FUNCTION_URL`.
-3) Deploy with the provided `netlify.toml` (functions path is `netlify/functions`). The build command runs `npm run build`, which generates `runtime-config.js` from those env vars and places it next to `index.html`.
+3) Deploy with the provided `netlify.toml` (functions path is `netlify/functions`, publish is `frontend`). The build command runs `npm run build`, which generates `frontend/runtime-config.js` from those env vars so the HTML can load it.
 
-Local dev: copy `runtime-config.example.js` to `runtime-config.js` and fill with your values. Do not commit `runtime-config.js`.
+Local dev: copy `frontend/runtime-config.example.js` to `frontend/runtime-config.js` and fill with your values. Do not commit `runtime-config.js`.

@@ -58,6 +58,6 @@ const output = `window.RUNTIME_CONFIG = ${JSON.stringify(
   2
 )};\n`;
 
-const outPath = path.join(__dirname, "..", "runtime-config.js");
+const outPath = path.join(__dirname, "..", "frontend", "runtime-config.js");
 fs.writeFileSync(outPath, output, "utf8");
 console.log(`runtime-config.js written to ${outPath}`);
