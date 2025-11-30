@@ -18,8 +18,9 @@
 
   // Valori di fallback (possono essere sovrascritti da settings Firebase)
   let ADMIN_PASSWORD = "";
-  const SHELLY_API_URL =
-    "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
+  const SHELLY_CONTROL_URL =
+    (window.RUNTIME_CONFIG && window.RUNTIME_CONFIG.SHELLY_FUNCTION_URL) ||
+    "/.netlify/functions/shelly-control";
 
   // Segreto per hash: può essere sovrascritto da settings/admin_secret
   let ADMIN_SECRET = "admin_local_secret_strong_!@#2025";
@@ -28,8 +29,6 @@
   const ADMIN_DEVICES = Object.freeze([
     {
       id: "e4b063f0c38c",
-      auth_key:
-        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenMainDoor",
       status_id: "mainDoorStatus",
       status_text_id: "mainDoorStatusText",
@@ -38,8 +37,6 @@
     },
     {
       id: "34945478d595",
-      auth_key:
-        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenAptDoor",
       status_id: "aptDoorStatus",
       status_text_id: "aptDoorStatusText",
@@ -48,8 +45,6 @@
     },
     {
       id: "3494547ab161",
-      auth_key:
-        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       button_id: "btnOpenExtraDoor1",
       status_id: "extraDoor1Status",
       status_text_id: "extraDoor1StatusText",
@@ -59,7 +54,6 @@
     },
     {
       id: "placeholder_id_2",
-      auth_key: "placeholder_auth_key_2",
       button_id: "btnOpenExtraDoor2",
       status_id: "extraDoor2Status",
       status_text_id: "extraDoor2StatusText",
@@ -843,16 +837,14 @@
 
     try {
       const resp = await fetchWithTimeout(
-        SHELLY_API_URL,
+        SHELLY_CONTROL_URL,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            id: device.id,
-            auth_key: device.auth_key,
-            channel: 0,
-            on: true,
-            turn: "on",
+            deviceId: device.id,
+            command: "open",
+            payload: { channel: 0 },
           }),
         },
         12000

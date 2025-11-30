@@ -15,8 +15,9 @@
     appId: "1:654507957917:web:3be18327d2951774113e74",
   };
 
-  const BASE_URL_SET =
-    "https://shelly-73-eu.shelly.cloud/v2/devices/api/set/switch";
+  const SHELLY_FUNCTION_URL =
+    (window.RUNTIME_CONFIG && window.RUNTIME_CONFIG.SHELLY_FUNCTION_URL) ||
+    "/.netlify/functions/shelly-control";
   const SECRET_KEY = "musart_secret_123_fixed_key";
   const CODE_VERSION_KEY = "code_version";
   const KEEP_TOKEN_IN_URL = true; // mantieni il token nell'URL dopo la verifica
@@ -26,31 +27,24 @@
   const DEVICES = Object.freeze([
     {
       id: "e4b063f0c38c",
-      auth_key:
-        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       storage_key: "clicks_MainDoor",
       button_id: "MainDoor",
       visible: true,
     },
     {
       id: "34945478d595",
-      auth_key:
-        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       storage_key: "clicks_AptDoor",
       button_id: "AptDoor",
       visible: true,
     },
     {
       id: "3494547ab161",
-      auth_key:
-        "MWI2MDc4dWlk4908A71DA809FCEC05C5D1F360943FBFC6A7934EC0FD9E3CFEAF03F8F5A6A4A0C60665B97A1AA2E2",
       storage_key: "clicks_ExtraDoor1",
       button_id: "ExtraDoor1",
       visible: false,
     },
     {
       id: "placeholder_id_2",
-      auth_key: "placeholder_auth_key_2",
       storage_key: "clicks_ExtraDoor2",
       button_id: "ExtraDoor2",
       visible: false,
@@ -829,16 +823,14 @@
 
     try {
       const response = await fetchWithTimeout(
-        BASE_URL_SET,
+        SHELLY_FUNCTION_URL,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            id: device.id,
-            auth_key: device.auth_key,
-            channel: 0,
-            on: true,
-            turn: "on",
+            deviceId: device.id,
+            command: "open",
+            payload: { channel: 0 },
           }),
         },
         12000
