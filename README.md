@@ -1,1 +1,1 @@
-hptts://check-in-musart.netlify.app
+hptts://check-in-musart.netlify.app/
